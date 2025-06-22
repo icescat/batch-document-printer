@@ -1,0 +1,91 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Python 项目开发规范
+
+## 1. Python 版本规范
+- 使用 Python 3.8+ 版本进行开发
+- 明确指定项目的 Python 版本要求
+- 在 `pyproject.toml` 或 `setup.py` 中声明支持的 Python 版本范围
+
+## 2. 代码风格规范
+### PEP 8 规范
+- 严格遵循 [PEP 8](mdc:https:/www.python.org/dev/peps/pep-0008) 风格指南
+- 使用工具自动化格式检查（如 `black`, `flake8`, `pylint`）
+
+### 命名规范
+```python
+# 类名：使用大驼峰命名法
+class UserAccount:
+    pass
+
+# 函数名：使用小写字母和下划线
+def calculate_total_amount():
+    pass
+
+# 变量名：使用小写字母和下划线
+user_name = "张三"
+
+# 常量：使用大写字母和下划线
+MAX_CONNECTIONS = 100
+
+# 模块名：使用小写字母，可以使用下划线
+import data_processor
+```
+
+### 注释规范
+```python
+def process_user_data(user_id: int, data: dict) -> dict:
+    """
+    处理用户数据并返回处理后的结果。
+
+    Args:
+        user_id (int): 用户ID
+        data (dict): 原始用户数据
+
+    Returns:
+        dict: 处理后的用户数据
+
+    Raises:
+        ValueError: 当用户ID不存在时抛出
+        KeyError: 当必要的数据字段缺失时抛出
+    """
+    pass
+```
+
+## 4. 依赖管理
+### 虚拟环境
+- 使用 `venv` 或 `conda` 创建独立的虚拟环境
+- 将虚拟环境文件夹添加到 `.gitignore`
+
+### 包管理
+- 使用 `pip` 或 `poetry` 管理依赖
+- 区分开发依赖和生产依赖
+- 锁定依赖版本，使用 `requirements.txt` 或 `poetry.lock`
+
+## 5. 类型提示
+- 使用类型注解增强代码可读性和可维护性
+```python
+from typing import List, Dict, Optional
+
+def get_user_info(user_id: int) -> Optional[Dict[str, str]]:
+    pass
+
+def process_items(items: List[Dict[str, any]]) -> None:
+    pass
+```
+
+## 6. 性能优化
+- 使用生成器处理大数据集
+- 适当使用列表推导式
+- 避免全局变量
+- 使用 `collections` 模块的高效数据结构
+
+## 7. 文档规范
+- 使用 Sphinx 生成文档
+- 编写详细的 README.md
+- 包含安装说明和使用示例
+
+- 提供 API 文档 
