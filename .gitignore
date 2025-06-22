@@ -23,10 +23,12 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# 保留项目特定的spec文件
+!办公文档批量打印器v*.spec
 
 # 打包脚本和临时文件
-*.bat
+# 保留项目特定的构建脚本
+!build_v*.bat
 copy/
 
 # 虚拟环境
