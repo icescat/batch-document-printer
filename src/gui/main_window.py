@@ -14,6 +14,7 @@ from src.core.print_controller import PrintController
 from src.core.models import Document, PrintSettings, PrintStatus
 from src.utils.config_utils import ConfigManager
 from src.gui.print_settings_dialog import PrintSettingsDialog
+from src.gui.page_count_dialog import show_page_count_dialog
 
 
 class MainWindow:
@@ -23,7 +24,7 @@ class MainWindow:
         """初始化主窗口"""
         # 创建主窗口
         self.root = tk.Tk()
-        self.root.title("办公文档批量打印器 v2.0 by.喵言喵语")
+        self.root.title("办公文档批量打印器 v3.0 by.喵言喵语")
         self.root.geometry("900x600")
         self.root.minsize(800, 500)
         
@@ -90,6 +91,12 @@ class MainWindow:
         self.btn_help = ttk.Button(
             self.toolbar, text="使用说明", 
             command=self._show_help
+        )
+        
+        # 计算页数按钮
+        self.btn_calculate_pages = ttk.Button(
+            self.toolbar, text="计算页数", 
+            command=self._calculate_pages
         )
         
         # 开始打印按钮
@@ -231,7 +238,10 @@ class MainWindow:
         self.btn_clear.pack(side="left", padx=2)
         self.btn_print_settings.pack(side="left", padx=10)
         self.btn_help.pack(side="left", padx=2)
+        
+        # 右侧按钮（从右到左的顺序）
         self.btn_start_print.pack(side="right", padx=5)
+        self.btn_calculate_pages.pack(side="right", padx=2)
         
         # 主框架布局
         self.toolbar.pack(fill="x", padx=10, pady=5)
@@ -383,10 +393,26 @@ class MainWindow:
             self._update_status()
             print("打印设置已更新")
     
+    def _calculate_pages(self):
+        """计算页数"""
+        if self.document_manager.document_count == 0:
+            messagebox.showwarning("提示", "请先添加要统计的文档")
+            return
+        
+        # 显示页数统计对话框
+        show_page_count_dialog(self.root, self.document_manager.documents)
+    
+    def _update_calculate_button_state(self):
+        """更新计算页数按钮状态"""
+        if self.document_manager.document_count == 0:
+            self.btn_calculate_pages.config(state="disabled")
+        else:
+            self.btn_calculate_pages.config(state="normal")
+    
     def _show_help(self):
         """显示使用说明"""
         help_text = """
-📖 办公文档批量打印器使用说明 V2.0
+            📖 办公文档批量打印器使用说明 V3.0
 
 ═══════════════════════════════════════
 
@@ -396,6 +422,7 @@ class MainWindow:
 • 灵活的打印设置配置
 • 实时打印进度显示
 • 便捷的文档管理
+• 页数统计功能
 
 ═══════════════════════════════════════
 
@@ -415,7 +442,13 @@ class MainWindow:
    • 双击文档可用默认程序打开预览
    • 按Delete键可快速删除选中文档
 
-3️⃣ 配置打印
+3️⃣ 页数统计
+   • 点击"计算页数"可统计所有文档的页数
+   • 支持PDF、Word、PowerPoint、Excel文档页数计算
+   • 显示详细统计报告和问题文件
+   • 可导出完整报告或错误报告
+
+4️⃣ 配置打印
    • 点击"打印设置"配置打印参数：
      - 选择打印机
      - 设置纸张尺寸（A4、A3、Letter等）
@@ -424,7 +457,7 @@ class MainWindow:
      - 选择颜色模式（彩色/黑白）
      - 启用双面打印（如果打印机支持）
 
-4️⃣ 开始打印
+5️⃣ 开始打印
    • 确认文档列表和打印设置
    • 点击"开始打印"执行批量打印
    • 观察进度条了解打印状态
@@ -458,6 +491,8 @@ class MainWindow:
 • 如打印失败，请检查文件是否被其他程序占用
 • 确认打印机驱动程序已正确安装
 • 对于PDF文件，确保系统已安装PDF阅读器
+• 页面统计大文件时间会较长请耐心等待
+• 页面统计遇到加密文件会卡主需手动关闭打开的文档
 
 ═══════════════════════════════════════
 
@@ -623,6 +658,9 @@ class MainWindow:
         # 更新打印机信息
         printer_name = self.current_print_settings.printer_name or "未设置"
         self.lbl_printer.config(text=f"打印机: {printer_name}")
+        
+        # 更新按钮状态
+        self._update_calculate_button_state()
     
     def _show_context_menu(self, event):
         """显示右键菜单"""

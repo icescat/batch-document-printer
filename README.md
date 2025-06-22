@@ -1,13 +1,13 @@
 # 办公文档批量打印器
 
-> 🚀 **最新版本**: v2.0.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
+> 🚀 **最新版本**: v3.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
 
 ## 项目概括
-本项目旨在开发一个基于Python 3.12的Windows桌面应用，用于批量打印Word文档、PowerPoint演示文稿、Excel表格和PDF文件。该应用提供图形用户界面，支持灵活的文档添加方式、文件类型过滤、完善的打印设置功能，以及一键批量打印，显著提升办公文档打印效率。
+本项目基于Python 3.12，用于批量打印Word文档、PowerPoint演示文稿、Excel表格和PDF文件。提供图形用户界面，支持灵活的文档添加方式、文件类型过滤、文档页数统计、便捷打印设置以及一键批量打印功能，能显著提升办公文档打印效率。
 
 ## 技术选型
 - **主要编程语言**: Python 3.12+
-- **GUI框架**: tkinter (内置，无需额外依赖) 或 PyQt5/PySide6 (更现代的界面)
+- **GUI框架**: tkinter
 - **文档处理库**: 
   - python-docx (Word文档处理)
   - python-pptx (PowerPoint处理)
@@ -28,10 +28,12 @@
   - `/gui/`: 图形用户界面模块
     - `main_window.py`: 主窗口界面
     - `print_settings_dialog.py`: 打印设置对话框
+    - `page_count_dialog.py`: 页数统计对话框
   - `/core/`: 核心业务逻辑模块
     - `document_manager.py`: 文档管理器
     - `print_controller.py`: 打印控制器
     - `settings_manager.py`: 设置管理器
+    - `page_count_manager.py`: 页数统计管理器
     - `models.py`: 数据模型定义
   - `/utils/`: 工具类和辅助函数
     - `config_utils.py`: 配置文件操作
@@ -48,22 +50,24 @@
 ## 核心功能 / 模块详解
 - **文档添加管理** (`document_manager.py`): 支持拖拽添加单个文件、按文件夹批量添加、文件格式过滤验证（.docx, .doc, .pptx, .ppt, .xlsx, .xls, .pdf）、文档列表管理与预览。
 - **文件类型过滤器**: 界面顶部提供Word、PPT、Excel、PDF四个勾选框，控制扫描文件夹时包含的文档类型，默认启用Word、PPT、PDF。
+- **页数统计功能** (`page_count_manager.py`): 智能识别并统计Word、PowerPoint、Excel、PDF文档的页数/张数，支持批量统计、实时显示总页数、按文件类型分类统计，为打印成本评估提供重要参考。
 - **打印设置配置** (`settings_manager.py`): 检测和选择可用打印机、纸张尺寸设置（A4、A3、Letter等）、打印数量控制、双面打印选项、彩色/黑白模式选择。
 - **批量打印控制** (`print_controller.py`): 调用Windows系统打印API、支持Word/PPT/Excel(COM接口)和PDF(系统默认程序)的打印调度、打印队列管理、打印进度显示、错误处理和重试机制。
-- **图形用户界面** (`main_window.py`): 直观的主界面设计、文档列表展示、拖拽支持、实时状态更新、打印进度条显示。
+- **图形用户界面** (`main_window.py`): 直观的主界面设计、文档列表展示、拖拽支持、实时状态更新、打印进度条显示、页数统计结果展示。
 - **应用配置管理** (`config_utils.py`): 用户偏好设置持久化、最近使用的打印设置、应用程序状态保存与恢复。
 
 ## 数据模型
-- **Document**: { id (UUID), file_path (Path), file_name (str), file_type (enum: WORD|PPT|EXCEL|PDF), file_size (int), added_time (datetime), print_status (enum: PENDING|PRINTING|COMPLETED|ERROR) }
+- **Document**: { id (UUID), file_path (Path), file_name (str), file_type (enum: WORD|PPT|EXCEL|PDF), file_size (int), page_count (int), added_time (datetime), print_status (enum: PENDING|PRINTING|COMPLETED|ERROR) }
 - **PrintSettings**: { printer_name (str), paper_size (str), copies (int), duplex (bool), color_mode (enum: COLOR|GRAYSCALE), page_range (str), orientation (enum: PORTRAIT|LANDSCAPE) }
 - **AppConfig**: { last_printer (str), default_settings (PrintSettings), window_geometry (dict), recent_folders (List[str]), enabled_file_types (dict) }
+- **PageCountResult**: { total_pages (int), word_pages (int), ppt_slides (int), excel_sheets (int), pdf_pages (int), error_files (List[str]) }
 
 ## 技术实现细节
 
 ### 核心架构设计
 - **数据模型层**: 使用dataclass定义Document、PrintSettings、AppConfig等核心数据结构
-- **业务逻辑层**: DocumentManager处理文档管理，PrinterSettingsManager管理打印设置，PrintController执行打印任务
-- **界面交互层**: 基于tkinter的MainWindow主界面和PrintSettingsDialog设置对话框
+- **业务逻辑层**: DocumentManager处理文档管理，PrinterSettingsManager管理打印设置，PrintController执行打印任务，PageCountManager处理页数统计
+- **界面交互层**: 基于tkinter的MainWindow主界面、PrintSettingsDialog设置对话框和PageCountDialog页数统计对话框
 - **配置管理**: 通过ConfigManager实现JSON格式的配置持久化
 
 ### 文档管理器实现 (#document_manager)
@@ -72,6 +76,15 @@
 - 提供批量文件夹扫描功能，支持递归搜索
 - 文件类型过滤：根据用户选择的文件类型过滤器扫描指定类型的文档
 - 文档状态管理：PENDING → PRINTING → COMPLETED/ERROR
+
+### 页数统计管理器实现 (#page_count_manager)
+- **Word文档统计**: 通过python-docx库读取.docx文件的段落和分页符，计算实际页数
+- **PowerPoint统计**: 使用python-pptx库获取演示文稿的幻灯片数量
+- **Excel文档统计**: 通过COM接口调用Excel应用程序，统计工作簿中所有工作表的页数
+- **PDF文档统计**: 使用PyPDF2/pypdf库读取PDF文件的页面数量
+- **批量统计**: 支持多线程并发处理，提高大批量文档的统计效率
+- **错误处理**: 对损坏或受保护的文档进行异常处理，记录错误信息
+- **实时反馈**: 统计过程中提供进度条和状态更新
 
 ### 打印设置管理 (#settings_manager)
 - 通过win32print API检测系统可用打印机
@@ -99,6 +112,13 @@
 - 实时保存用户选择到配置文件
 - 扫描文件夹时根据过滤器设置筛选文档类型
 
+### 页数统计对话框实现 (#page_count_dialog)
+- 独立的页数统计窗口，显示详细的统计结果
+- 按文件类型分类显示：Word页数、PPT幻灯片数、Excel工作表数、PDF页数
+- 总页数汇总和打印成本估算参考
+- 统计进度条和状态显示
+- 支持统计结果导出和保存
+
 ## 开发状态跟踪
 | 模块/功能        | 状态     | 备注与链接 |
 |------------------|----------|------------|
@@ -109,16 +129,14 @@
 | 打印控制器       | ✅已完成  | [打印控制](#print_controller) |
 | 工具函数模块     | ✅已完成  | [配置管理](#config_utils) |
 | 应用配置管理     | ✅已完成  | [配置持久化](#config_utils) |
-| 单元测试编写     | 待完成   | 需要后续添加 |
-| 应用打包构建     | ✅已完成  | build.bat脚本 |
 | GitHub发布部署   | ✅已完成  | [v1.0.0 Release](https://github.com/icescat/batch-document-printer/releases) |
 | Excel文档支持    | ✅已完成  | [Excel打印](#print_controller) |
 | 文件类型过滤器   | ✅已完成  | [过滤器实现](#file_type_filter) |
 | v2.0版本发布     | ✅已完成  | v2.0功能开发完成 |
 | 项目结构清理     | ✅已完成  | 删除冗余文件，优化项目结构 |
-
-## 代码检查与问题记录
-[本部分用于记录代码检查结果和开发过程中遇到的问题及其解决方案。]
+| 页数统计功能     | ✅已完成  | [页数统计](#page_count_manager) |
+| 页数统计对话框   | ✅已完成  | [统计界面](#page_count_dialog) |
+| v3.0版本发布     | ✅已完成  | 页数统计功能实现 |
 
 ## 环境设置与运行指南
 ### 开发环境要求
@@ -145,7 +163,7 @@ python -m gui.main_window
 ### 应用构建
 ```bash
 # 手动构建（推荐）
-pyinstaller --onefile --windowed --name="办公文档批量打印器v2.0" --icon=resources/app_icon.ico main.py
+pyinstaller --onefile --windowed --name="办公文档批量打印器v3.0" --icon=resources/app_icon.ico main.py
 
 # 清理构建文件
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
@@ -158,9 +176,10 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 - **如果没有图标**: 将使用PyInstaller默认图标
 
 #### 构建输出
-- **可执行文件**: `dist/办公文档批量打印器v2.0.exe`
+- **可执行文件**: `dist/办公文档批量打印器v3.0.exe`
 - **文件大小**: 约30-60MB（包含所有依赖）
 - **注意**: 构建后的临时文件已配置在.gitignore中，不会提交到版本控制
+
 
 ## 下载与安装
 
