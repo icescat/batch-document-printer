@@ -1,5 +1,7 @@
 # 批量文档打印桌面应用
 
+> 🚀 **最新版本**: v1.0.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
+
 ## 项目概括
 本项目旨在开发一个基于Python 3.12的Windows桌面应用，用于批量打印Word文档、PowerPoint演示文稿和PDF文件。该应用提供图形用户界面，支持灵活的文档添加方式、完善的打印设置功能，以及一键批量打印，显著提升办公文档打印效率。
 
@@ -101,6 +103,7 @@
 | 应用配置管理     | ✅已完成  | AI     | 2024-12-19   | 2024-12-19   | [配置持久化](#config_utils) |
 | 单元测试编写     | 待完成   | AI     | 2024-12-20   |              | 需要后续添加 |
 | 应用打包构建     | ✅已完成  | AI     | 2024-12-20   | 2024-12-19   | build.bat脚本 |
+| GitHub发布部署   | ✅已完成  | AI     | 2024-12-19   | 2024-12-19   | [v1.0.0 Release](https://github.com/icescat/batch-document-printer/releases) |
 
 ## 代码检查与问题记录
 [本部分用于记录代码检查结果和开发过程中遇到的问题及其解决方案。]
@@ -157,13 +160,32 @@ pyinstaller --onefile --windowed --name="批量文档打印器" --icon=resources
 - **版本信息**: 包含开发者署名"喵言喵语"
 - **文件大小**: 约30-60MB（包含所有依赖）
 
+## 下载与安装
+
+### 📥 直接下载（推荐）
+**[点击这里下载最新版本](https://github.com/icescat/batch-document-printer/releases/latest)**
+
+1. 在 Release 页面下载 `办公文档批量打印器.exe`
+2. 双击运行即可使用，无需安装
+3. 首次启动可能需要10-30秒初始化时间
+
+### 💻 系统要求
+- **操作系统**: Windows 10/11 (64位)
+- **必需软件**: Microsoft Office (用于Word和PowerPoint文档)
+- **可选软件**: PDF阅读器 (用于PDF文档打印)
+- **硬件要求**: 至少一台可用的打印机
+
+### 🔧 从源码运行
+如果您是开发者或想要自定义功能：
+```bash
+git clone https://github.com/icescat/batch-document-printer.git
+cd batch-document-printer
+pip install -r requirements.txt
+python main.py
+```
+
 ## 部署与发布
-- **目标平台**: Windows 10/11 (64位)
-- **发布方式**: 独立exe可执行文件
-- **运行要求**: 
-  - Windows系统
-  - Microsoft Office (用于Word/PPT打印)
-  - PDF阅读器 (用于PDF打印)
-  - 可用打印机
-- **安装说明**: 无需安装，下载exe文件直接运行
-- **首次运行**: 可能需要较长时间初始化 
+- **发布渠道**: GitHub Releases
+- **更新方式**: 手动下载新版本覆盖
+- **版本管理**: 语义化版本控制 (Semantic Versioning)
+- **发布频率**: 根据功能更新和Bug修复情况 
