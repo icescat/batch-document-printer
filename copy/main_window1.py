@@ -92,6 +92,39 @@ class MainWindow:
             command=self._show_help
         )
         
+        # 文件类型过滤器框架
+        self.filter_frame = ttk.LabelFrame(self.toolbar, text="文件类型过滤", padding="2")
+        
+        # 文件类型勾选框变量
+        self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
+        self.var_ppt = tk.BooleanVar(value=self.app_config.enabled_file_types.get('ppt', True))
+        self.var_excel = tk.BooleanVar(value=self.app_config.enabled_file_types.get('excel', False))
+        self.var_pdf = tk.BooleanVar(value=self.app_config.enabled_file_types.get('pdf', True))
+        
+        # 文件类型勾选框
+        self.chk_word = ttk.Checkbutton(
+            self.filter_frame, text="Word", variable=self.var_word,
+            command=self._on_filter_changed
+        )
+        self.chk_ppt = ttk.Checkbutton(
+            self.filter_frame, text="PPT", variable=self.var_ppt,
+            command=self._on_filter_changed
+        )
+        self.chk_excel = ttk.Checkbutton(
+            self.filter_frame, text="Excel", variable=self.var_excel,
+            command=self._on_filter_changed
+        )
+        self.chk_pdf = ttk.Checkbutton(
+            self.filter_frame, text="PDF", variable=self.var_pdf,
+            command=self._on_filter_changed
+        )
+        
+        # 布局文件类型过滤器
+        self.chk_word.grid(row=0, column=0, padx=2)
+        self.chk_ppt.grid(row=0, column=1, padx=2)
+        self.chk_excel.grid(row=0, column=2, padx=2)
+        self.chk_pdf.grid(row=0, column=3, padx=2)
+        
         # 开始打印按钮
         self.btn_start_print = ttk.Button(
             self.toolbar, text="开始打印", 
@@ -114,51 +147,8 @@ class MainWindow:
     def _create_document_list(self):
         """创建文档列表组件"""
         # 文档列表框架
-        list_frame = ttk.LabelFrame(self.main_frame, text="", padding="5")
+        list_frame = ttk.LabelFrame(self.main_frame, text="文档列表", padding="5")
         self.list_frame = list_frame
-        
-        # 创建标题和过滤器行
-        title_filter_frame = ttk.Frame(list_frame)
-        
-        # 文档列表标题
-        title_label = ttk.Label(title_filter_frame, text="文档列表", font=("", 9, "bold"))
-        
-        # 文件类型过滤器
-        filter_label = ttk.Label(title_filter_frame, text="文件类型过滤:")
-        
-        # 文件类型勾选框变量
-        self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
-        self.var_ppt = tk.BooleanVar(value=self.app_config.enabled_file_types.get('ppt', True))
-        self.var_excel = tk.BooleanVar(value=self.app_config.enabled_file_types.get('excel', False))
-        self.var_pdf = tk.BooleanVar(value=self.app_config.enabled_file_types.get('pdf', True))
-        
-        # 文件类型勾选框
-        self.chk_word = ttk.Checkbutton(
-            title_filter_frame, text="Word", variable=self.var_word,
-            command=self._on_filter_changed
-        )
-        self.chk_ppt = ttk.Checkbutton(
-            title_filter_frame, text="PPT", variable=self.var_ppt,
-            command=self._on_filter_changed
-        )
-        self.chk_excel = ttk.Checkbutton(
-            title_filter_frame, text="Excel", variable=self.var_excel,
-            command=self._on_filter_changed
-        )
-        self.chk_pdf = ttk.Checkbutton(
-            title_filter_frame, text="PDF", variable=self.var_pdf,
-            command=self._on_filter_changed
-        )
-        
-        # 布局标题和过滤器
-        title_label.pack(side="left")
-        filter_label.pack(side="left", padx=(20, 5))
-        self.chk_word.pack(side="left", padx=2)
-        self.chk_ppt.pack(side="left", padx=2)
-        self.chk_excel.pack(side="left", padx=2)
-        self.chk_pdf.pack(side="left", padx=2)
-        
-        title_filter_frame.pack(fill="x", pady=(0, 5))
         
         # 创建Treeview
         columns = ("文件名", "类型", "大小", "状态", "路径")
@@ -182,10 +172,10 @@ class MainWindow:
         self.doc_tree.configure(yscrollcommand=scrollbar.set)
         
         # 布局
-        self.doc_tree.grid(row=1, column=0, sticky="nsew")
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        self.doc_tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
         
-        list_frame.grid_rowconfigure(1, weight=1)
+        list_frame.grid_rowconfigure(0, weight=1)
         list_frame.grid_columnconfigure(0, weight=1)
     
     def _create_status_area(self):
@@ -227,12 +217,13 @@ class MainWindow:
     def _setup_layout(self):
         """设置布局"""
         # 工具栏布局
-        self.btn_add_files.pack(side="left", padx=2)
-        self.btn_add_folder.pack(side="left", padx=2)
-        self.btn_remove_selected.pack(side="left", padx=2)
-        self.btn_clear.pack(side="left", padx=2)
-        self.btn_print_settings.pack(side="left", padx=10)
-        self.btn_help.pack(side="left", padx=2)
+        self.btn_add_files.pack(side="left", padx=5)
+        self.btn_add_folder.pack(side="left", padx=5)
+        self.btn_remove_selected.pack(side="left", padx=5)
+        self.btn_clear.pack(side="left", padx=5)
+        self.btn_print_settings.pack(side="left", padx=20)
+        self.btn_help.pack(side="left", padx=5)
+        self.filter_frame.pack(side="left", padx=10)
         self.btn_start_print.pack(side="right", padx=5)
         
         # 主框架布局
