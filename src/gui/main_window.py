@@ -113,18 +113,11 @@ class MainWindow:
     
     def _create_document_list(self):
         """创建文档列表组件"""
-        # 文档列表框架
-        list_frame = ttk.LabelFrame(self.main_frame, text="", padding="5")
-        self.list_frame = list_frame
-        
-        # 创建标题和过滤器行
-        title_filter_frame = ttk.Frame(list_frame)
+        # 创建标题框架用于放置在LabelFrame的标题位置
+        title_frame = ttk.Frame(self.main_frame)
         
         # 文档列表标题
-        title_label = ttk.Label(title_filter_frame, text="文档列表", font=("", 9, "bold"))
-        
-        # 文件类型过滤器
-        filter_label = ttk.Label(title_filter_frame, text="文件类型过滤:")
+        title_label = ttk.Label(title_frame, text="文档列表")
         
         # 文件类型勾选框变量
         self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
@@ -134,35 +127,40 @@ class MainWindow:
         
         # 文件类型勾选框
         self.chk_word = ttk.Checkbutton(
-            title_filter_frame, text="Word", variable=self.var_word,
+            title_frame, text="Word", variable=self.var_word,
             command=self._on_filter_changed
         )
         self.chk_ppt = ttk.Checkbutton(
-            title_filter_frame, text="PPT", variable=self.var_ppt,
+            title_frame, text="PPT", variable=self.var_ppt,
             command=self._on_filter_changed
         )
         self.chk_excel = ttk.Checkbutton(
-            title_filter_frame, text="Excel", variable=self.var_excel,
+            title_frame, text="Excel", variable=self.var_excel,
             command=self._on_filter_changed
         )
         self.chk_pdf = ttk.Checkbutton(
-            title_filter_frame, text="PDF", variable=self.var_pdf,
+            title_frame, text="PDF", variable=self.var_pdf,
             command=self._on_filter_changed
         )
         
         # 布局标题和过滤器
         title_label.pack(side="left")
-        filter_label.pack(side="left", padx=(20, 5))
-        self.chk_word.pack(side="left", padx=2)
+        self.chk_word.pack(side="left", padx=(10, 2))
         self.chk_ppt.pack(side="left", padx=2)
         self.chk_excel.pack(side="left", padx=2)
         self.chk_pdf.pack(side="left", padx=2)
         
-        title_filter_frame.pack(fill="x", pady=(0, 5))
+        # 文档列表框架
+        list_frame = ttk.LabelFrame(self.main_frame, labelwidget=title_frame, padding="5")
+        self.list_frame = list_frame
+        
+        # 创建树形视图容器
+        tree_frame = ttk.Frame(list_frame)
+        tree_frame.pack(fill="both", expand=True)
         
         # 创建Treeview
         columns = ("文件名", "类型", "大小", "状态", "路径")
-        self.doc_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=15)
+        self.doc_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15)
         
         # 设置列标题和宽度
         self.doc_tree.heading("文件名", text="文件名")
@@ -178,15 +176,15 @@ class MainWindow:
         self.doc_tree.column("路径", width=300)
         
         # 滚动条
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.doc_tree.yview)
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.doc_tree.yview)
         self.doc_tree.configure(yscrollcommand=scrollbar.set)
         
         # 布局
-        self.doc_tree.grid(row=1, column=0, sticky="nsew")
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        self.doc_tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
         
-        list_frame.grid_rowconfigure(1, weight=1)
-        list_frame.grid_columnconfigure(0, weight=1)
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
     
     def _create_status_area(self):
         """创建状态显示区域"""
@@ -388,7 +386,7 @@ class MainWindow:
     def _show_help(self):
         """显示使用说明"""
         help_text = """
-📖 办公文档批量打印器使用说明
+📖 办公文档批量打印器使用说明 V2.0
 
 ═══════════════════════════════════════
 
@@ -408,6 +406,8 @@ class MainWindow:
    • 点击"添加文件夹"批量添加整个文件夹中的文档
    • 支持递归搜索子文件夹
    • 使用文件类型过滤器选择要扫描的文档类型（Word、PPT、Excel、PDF）
+   • 默认不扫码excel，表格打印容易排版错位，请先手动调整好排版
+
 
 2️⃣ 管理文档
    • 选中文档后点击"删除选中"可移除特定文档
@@ -434,7 +434,7 @@ class MainWindow:
 📁 支持的文件格式
 • Word文档：.doc、.docx
 • PowerPoint演示文稿：.ppt、.pptx
-• Excel表格：.xls、.xlsx
+• Excel表格：.xls、.xlsx （慎重选择，打印前先手动调整好排版）
 • PDF文件：.pdf
 
 ═══════════════════════════════════════
