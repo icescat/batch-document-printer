@@ -1,4 +1,4 @@
-# 批量文档打印桌面应用
+# 办公文档批量打印器
 
 > 🚀 **最新版本**: v2.0.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
 
@@ -28,25 +28,22 @@
   - `/gui/`: 图形用户界面模块
     - `main_window.py`: 主窗口界面
     - `print_settings_dialog.py`: 打印设置对话框
-    - `document_list_widget.py`: 文档列表组件
   - `/core/`: 核心业务逻辑模块
     - `document_manager.py`: 文档管理器
     - `print_controller.py`: 打印控制器
     - `settings_manager.py`: 设置管理器
+    - `models.py`: 数据模型定义
   - `/utils/`: 工具类和辅助函数
-    - `file_utils.py`: 文件操作工具
-    - `print_utils.py`: 打印相关工具函数
     - `config_utils.py`: 配置文件操作
 - `/data/`: 应用数据存储目录
   - `config.json`: 应用配置文件
   - `print_settings.json`: 打印设置配置
+- `/resources/`: 资源文件目录
+  - `app_icon.ico`: 应用程序图标
 - `/tests/`: 测试代码目录
-- `/build/`: 构建输出目录
-- `/dist/`: 最终发布目录
 - `main.py`: 程序入口点
 - `requirements.txt`: Python依赖管理
 - `.gitignore`: Git忽略配置
-- `build.bat`: Windows构建脚本
 
 ## 核心功能 / 模块详解
 - **文档添加管理** (`document_manager.py`): 支持拖拽添加单个文件、按文件夹批量添加、文件格式过滤验证（.docx, .doc, .pptx, .ppt, .xlsx, .xls, .pdf）、文档列表管理与预览。
@@ -117,7 +114,8 @@
 | GitHub发布部署   | ✅已完成  | AI     | 2024-12-19   | 2024-12-19   | [v1.0.0 Release](https://github.com/icescat/batch-document-printer/releases) |
 | Excel文档支持    | ✅已完成  | AI     | 2024-12-22   | 2024-12-22   | [Excel打印](#print_controller) |
 | 文件类型过滤器   | ✅已完成  | AI     | 2024-12-22   | 2024-12-22   | [过滤器实现](#file_type_filter) |
-| v2.0版本发布     | 🔄进行中  | AI     | 2024-12-22   |              | 准备发布v2.0 |
+| v2.0版本发布     | ✅已完成  | AI     | 2024-12-22   | 2024-12-22   | v2.0功能开发完成 |
+| 项目结构清理     | ✅已完成  | AI     | 2024-12-22   | 2024-12-22   | 删除冗余文件，优化项目结构 |
 
 ## 代码检查与问题记录
 [本部分用于记录代码检查结果和开发过程中遇到的问题及其解决方案。]
@@ -146,11 +144,11 @@ python -m gui.main_window
 
 ### 应用构建
 ```bash
-# 使用构建脚本（推荐）
-build.bat
+# 手动构建（推荐）
+pyinstaller --onefile --windowed --name="办公文档批量打印器v2.0" --icon=resources/app_icon.ico main.py
 
-# 手动构建
-pyinstaller --onefile --windowed --name="批量文档打印器" --icon=resources/app_icon.ico main.py
+# 清理构建文件
+Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 ```
 
 #### 图标配置
@@ -159,20 +157,10 @@ pyinstaller --onefile --windowed --name="批量文档打印器" --icon=resources
 - **推荐尺寸**: 16x16, 32x32, 48x48, 64x64, 128x128, 256x256像素
 - **如果没有图标**: 将使用PyInstaller默认图标
 
-#### 构建脚本功能
-`build.bat` 脚本包含以下功能：
-- ✅ 自动检查Python环境
-- ✅ 安装项目依赖
-- ✅ 检测应用图标文件
-- ✅ 生成版本信息
-- ✅ 清理旧构建文件
-- ✅ 优化打包参数
-- ✅ 包含资源文件
-
 #### 构建输出
-- **可执行文件**: `dist/批量文档打印器.exe`
-- **版本信息**: 包含开发者署名"喵言喵语"
+- **可执行文件**: `dist/办公文档批量打印器v2.0.exe`
 - **文件大小**: 约30-60MB（包含所有依赖）
+- **注意**: 构建后的临时文件已配置在.gitignore中，不会提交到版本控制
 
 ## 下载与安装
 
