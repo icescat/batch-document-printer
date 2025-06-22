@@ -25,6 +25,10 @@ MANIFEST
 *.manifest
 *.spec
 
+# 打包脚本和临时文件
+*.bat
+copy/
+
 # 虚拟环境
 venv/
 env/
