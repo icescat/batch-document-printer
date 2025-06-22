@@ -4,7 +4,7 @@
 """
 import os
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Dict
 from .models import Document, FileType, PrintStatus
 
 
@@ -15,6 +15,7 @@ class DocumentManager:
     SUPPORTED_EXTENSIONS = {
         '.doc', '.docx',    # Word文档
         '.ppt', '.pptx',    # PowerPoint
+        '.xls', '.xlsx',    # Excel表格
         '.pdf'              # PDF文件
     }
     
@@ -87,13 +88,14 @@ class DocumentManager:
         print(f"批量添加完成: 成功 {len(added_documents)} 个，总计 {len(file_paths)} 个")
         return added_documents
     
-    def add_folder(self, folder_path: Path, recursive: bool = True) -> List[Document]:
+    def add_folder(self, folder_path: Path, recursive: bool = True, enabled_file_types: Optional[Dict[str, bool]] = None) -> List[Document]:
         """
         添加文件夹中的所有支持的文档
         
         Args:
             folder_path: 文件夹路径
             recursive: 是否递归搜索子文件夹
+            enabled_file_types: 启用的文件类型字典，如 {'word': True, 'ppt': True, 'excel': False, 'pdf': True}
             
         Returns:
             成功添加的Document对象列表
@@ -102,14 +104,29 @@ class DocumentManager:
             print(f"无效的文件夹路径: {folder_path}")
             return []
         
+        # 如果没有提供文件类型过滤器，默认启用所有类型
+        if enabled_file_types is None:
+            enabled_file_types = {'word': True, 'ppt': True, 'excel': True, 'pdf': True}
+        
+        # 根据启用的文件类型构建允许的扩展名集合
+        allowed_extensions = set()
+        if enabled_file_types.get('word', False):
+            allowed_extensions.update(['.doc', '.docx'])
+        if enabled_file_types.get('ppt', False):
+            allowed_extensions.update(['.ppt', '.pptx'])
+        if enabled_file_types.get('excel', False):
+            allowed_extensions.update(['.xls', '.xlsx'])
+        if enabled_file_types.get('pdf', False):
+            allowed_extensions.add('.pdf')
+        
         # 获取文件列表
         pattern = "**/*" if recursive else "*"
         all_files = list(folder_path.glob(pattern))
         
-        # 过滤支持的文件
+        # 过滤支持的文件（根据启用的文件类型）
         supported_files = [
             f for f in all_files 
-            if f.is_file() and f.suffix.lower() in self.SUPPORTED_EXTENSIONS
+            if f.is_file() and f.suffix.lower() in allowed_extensions
         ]
         
         print(f"在文件夹 {folder_path.name} 中找到 {len(supported_files)} 个支持的文档")

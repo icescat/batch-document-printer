@@ -167,8 +167,6 @@ class PrintController:
                 return self._print_word_document(file_path)
             elif document.file_type == FileType.PPT:
                 return self._print_powerpoint(file_path)
-            elif document.file_type == FileType.EXCEL:
-                return self._print_excel(file_path)
             else:
                 print(f"不支持的文件类型: {document.file_type}")
                 return False
@@ -299,55 +297,6 @@ class PrintController:
                 
         except Exception as e:
             print(f"PowerPoint文档打印失败: {e}")
-            return False
-    
-    def _print_excel(self, file_path: Path) -> bool:
-        """
-        打印Excel文档
-        
-        Args:
-            file_path: Excel文件路径
-            
-        Returns:
-            是否打印成功
-        """
-        try:
-            import comtypes.client
-            
-            # 创建Excel应用程序对象
-            excel = comtypes.client.CreateObject("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False
-            
-            try:
-                # 打开工作簿
-                workbook = excel.Workbooks.Open(str(file_path))
-                
-                # 设置打印参数
-                if self._current_settings:
-                    # 设置打印机
-                    excel.ActivePrinter = self._current_settings.printer_name
-                    
-                    # 打印工作簿（所有工作表）
-                    workbook.PrintOut(
-                        Copies=self._current_settings.copies,
-                        Collate=True,
-                        Preview=False
-                    )
-                else:
-                    workbook.PrintOut()
-                
-                # 关闭工作簿
-                workbook.Close(SaveChanges=False)
-                
-                return True
-                
-            finally:
-                # 退出Excel应用程序
-                excel.Quit()
-                
-        except Exception as e:
-            print(f"Excel文档打印失败: {e}")
             return False
     
     def cancel_current_print(self):

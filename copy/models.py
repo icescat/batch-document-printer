@@ -14,7 +14,6 @@ class FileType(Enum):
     """文件类型枚举"""
     WORD = "word"
     PPT = "ppt"
-    EXCEL = "excel"
     PDF = "pdf"
 
 
@@ -60,8 +59,6 @@ class Document:
             self.file_type = FileType.WORD
         elif suffix in ['.ppt', '.pptx']:
             self.file_type = FileType.PPT
-        elif suffix in ['.xls', '.xlsx']:
-            self.file_type = FileType.EXCEL
         elif suffix == '.pdf':
             self.file_type = FileType.PDF
         else:
@@ -78,7 +75,6 @@ class Document:
         type_map = {
             FileType.WORD: "Word文档",
             FileType.PPT: "PowerPoint",
-            FileType.EXCEL: "Excel表格",
             FileType.PDF: "PDF文件"
         }
         return type_map.get(self.file_type, "未知")
@@ -125,13 +121,6 @@ class AppConfig:
     default_settings: PrintSettings = field(default_factory=PrintSettings)
     window_geometry: dict = field(default_factory=dict)
     recent_folders: List[str] = field(default_factory=list)
-    # 文件类型过滤器设置 - 默认启用Word、PPT、PDF，不启用Excel
-    enabled_file_types: dict = field(default_factory=lambda: {
-        'word': True,
-        'ppt': True,
-        'excel': False,
-        'pdf': True
-    })
     
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -139,30 +128,15 @@ class AppConfig:
             'last_printer': self.last_printer,
             'default_settings': self.default_settings.to_dict(),
             'window_geometry': self.window_geometry,
-            'recent_folders': self.recent_folders,
-            'enabled_file_types': self.enabled_file_types
+            'recent_folders': self.recent_folders
         }
     
     @classmethod
     def from_dict(cls, data: dict) -> 'AppConfig':
         """从字典创建实例"""
-        # 默认的文件类型启用状态
-        default_enabled_types = {
-            'word': True,
-            'ppt': True,
-            'excel': False,
-            'pdf': True
-        }
-        enabled_types = data.get('enabled_file_types', default_enabled_types)
-        # 确保所有文件类型都有设置
-        for file_type in default_enabled_types:
-            if file_type not in enabled_types:
-                enabled_types[file_type] = default_enabled_types[file_type]
-        
         return cls(
             last_printer=data.get('last_printer', ''),
             default_settings=PrintSettings.from_dict(data.get('default_settings', {})),
             window_geometry=data.get('window_geometry', {}),
-            recent_folders=data.get('recent_folders', []),
-            enabled_file_types=enabled_types
+            recent_folders=data.get('recent_folders', [])
         ) 

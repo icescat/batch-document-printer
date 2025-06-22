@@ -23,7 +23,7 @@ class MainWindow:
         """初始化主窗口"""
         # 创建主窗口
         self.root = tk.Tk()
-        self.root.title("办公文档批量打印器 v2.0 by.喵言喵语")
+        self.root.title("办公文档批量打印器 v1.0 by.喵言喵语")
         self.root.geometry("900x600")
         self.root.minsize(800, 500)
         
@@ -91,39 +91,6 @@ class MainWindow:
             self.toolbar, text="使用说明", 
             command=self._show_help
         )
-        
-        # 文件类型过滤器框架
-        self.filter_frame = ttk.LabelFrame(self.toolbar, text="文件类型过滤", padding="2")
-        
-        # 文件类型勾选框变量
-        self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
-        self.var_ppt = tk.BooleanVar(value=self.app_config.enabled_file_types.get('ppt', True))
-        self.var_excel = tk.BooleanVar(value=self.app_config.enabled_file_types.get('excel', False))
-        self.var_pdf = tk.BooleanVar(value=self.app_config.enabled_file_types.get('pdf', True))
-        
-        # 文件类型勾选框
-        self.chk_word = ttk.Checkbutton(
-            self.filter_frame, text="Word", variable=self.var_word,
-            command=self._on_filter_changed
-        )
-        self.chk_ppt = ttk.Checkbutton(
-            self.filter_frame, text="PPT", variable=self.var_ppt,
-            command=self._on_filter_changed
-        )
-        self.chk_excel = ttk.Checkbutton(
-            self.filter_frame, text="Excel", variable=self.var_excel,
-            command=self._on_filter_changed
-        )
-        self.chk_pdf = ttk.Checkbutton(
-            self.filter_frame, text="PDF", variable=self.var_pdf,
-            command=self._on_filter_changed
-        )
-        
-        # 布局文件类型过滤器
-        self.chk_word.grid(row=0, column=0, padx=2)
-        self.chk_ppt.grid(row=0, column=1, padx=2)
-        self.chk_excel.grid(row=0, column=2, padx=2)
-        self.chk_pdf.grid(row=0, column=3, padx=2)
         
         # 开始打印按钮
         self.btn_start_print = ttk.Button(
@@ -223,7 +190,6 @@ class MainWindow:
         self.btn_clear.pack(side="left", padx=5)
         self.btn_print_settings.pack(side="left", padx=20)
         self.btn_help.pack(side="left", padx=5)
-        self.filter_frame.pack(side="left", padx=10)
         self.btn_start_print.pack(side="right", padx=5)
         
         # 主框架布局
@@ -257,11 +223,10 @@ class MainWindow:
     def _add_files(self):
         """添加文件"""
         file_types = [
-            ("支持的文档", "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx"),
+            ("支持的文档", "*.pdf;*.doc;*.docx;*.ppt;*.pptx"),
             ("PDF文件", "*.pdf"),
             ("Word文档", "*.doc;*.docx"),
             ("PowerPoint", "*.ppt;*.pptx"),
-            ("Excel表格", "*.xls;*.xlsx"),
             ("所有文件", "*.*")
         ]
         
@@ -292,10 +257,7 @@ class MainWindow:
                 "是否搜索子文件夹中的文档？"
             )
             
-            # 获取当前的文件类型过滤设置
-            enabled_file_types = self._get_enabled_file_types()
-            
-            added_docs = self.document_manager.add_folder(folder_path, recursive, enabled_file_types)
+            added_docs = self.document_manager.add_folder(folder_path, recursive)
             
             if added_docs:
                 self._refresh_document_list()
@@ -303,25 +265,6 @@ class MainWindow:
                 messagebox.showinfo("成功", f"从文件夹中成功添加 {len(added_docs)} 个文档")
             else:
                 messagebox.showwarning("提示", "在指定文件夹中未找到支持的文档")
-    
-    def _get_enabled_file_types(self) -> dict:
-        """获取当前启用的文件类型"""
-        return {
-            'word': self.var_word.get(),
-            'ppt': self.var_ppt.get(),
-            'excel': self.var_excel.get(),
-            'pdf': self.var_pdf.get()
-        }
-    
-    def _on_filter_changed(self):
-        """文件类型过滤器变更事件"""
-        # 更新应用配置
-        self.app_config.enabled_file_types = self._get_enabled_file_types()
-        
-        # 保存配置
-        self.config_manager.save_app_config(self.app_config)
-        
-        print(f"文件类型过滤器已更新: {self.app_config.enabled_file_types}")
     
     def _remove_selected_documents(self):
         """删除选中的文档"""
@@ -384,8 +327,7 @@ class MainWindow:
 ═══════════════════════════════════════
 
 🎯 软件功能
-• 批量添加和打印Word、PowerPoint、Excel、PDF文档
-• 文件类型过滤器：选择要扫描的文档类型
+• 批量添加和打印Word、PowerPoint、PDF文档
 • 灵活的打印设置配置
 • 实时打印进度显示
 • 便捷的文档管理
@@ -398,7 +340,6 @@ class MainWindow:
    • 点击"添加文件"选择单个或多个文档
    • 点击"添加文件夹"批量添加整个文件夹中的文档
    • 支持递归搜索子文件夹
-   • 使用文件类型过滤器选择要扫描的文档类型（Word、PPT、Excel、PDF）
 
 2️⃣ 管理文档
    • 选中文档后点击"删除选中"可移除特定文档
@@ -425,7 +366,6 @@ class MainWindow:
 📁 支持的文件格式
 • Word文档：.doc、.docx
 • PowerPoint演示文稿：.ppt、.pptx
-• Excel表格：.xls、.xlsx
 • PDF文件：.pdf
 
 ═══════════════════════════════════════
@@ -434,15 +374,14 @@ class MainWindow:
 
 🔹 系统要求
 • Windows 10/11 操作系统
-• 已安装Microsoft Office（Word、PowerPoint和Excel打印需要）
+• 已安装Microsoft Office（Word和PowerPoint打印需要）
 • 至少一台可用的打印机
 
 🔹 使用提示
 • 打印前请确保打印机正常连接
 • 大批量打印时请确保纸张充足
 • PDF文件使用系统默认程序打印
-• Word、PowerPoint和Excel通过Office应用打印
-• 使用文件类型过滤器可控制扫描文件夹时包含的文档类型
+• Word和PowerPoint通过Office应用打印
 • 打印过程中请勿关闭应用程序
 
 🔹 故障排除
