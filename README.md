@@ -1,13 +1,13 @@
 # 办公文档批量打印器
 
-> 🚀 **最新版本**: v3.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
+> 🚀 **最新版本**: v4.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
 
 ## 项目概括
-本项目基于Python 3.12，用于批量打印Word文档、PowerPoint演示文稿、Excel表格和PDF文件。提供图形用户界面，支持灵活的文档添加方式、文件类型过滤、文档页数统计、便捷打印设置以及一键批量打印功能，能显著提升办公文档打印效率。
+本项目基于Python 3.12，用于批量打印Word文档、PowerPoint演示文稿、Excel表格和PDF文件。提供图形用户界面，支持灵活的文档添加方式（包括拖拽导入）、文件类型过滤、文档页数统计、便捷打印设置以及一键批量打印功能，能显著提升办公文档打印效率。
 
 ## 技术选型
 - **主要编程语言**: Python 3.12+
-- **GUI框架**: tkinter
+- **GUI框架**: tkinter, tkinterdnd2 (拖拽支持)
 - **文档处理库**: 
   - python-docx (Word文档处理)
   - python-pptx (PowerPoint处理)
@@ -48,12 +48,12 @@
 - `.gitignore`: Git忽略配置
 
 ## 核心功能 / 模块详解
-- **文档添加管理** (`document_manager.py`): 支持拖拽添加单个文件、按文件夹批量添加、文件格式过滤验证（.docx, .doc, .pptx, .ppt, .xlsx, .xls, .pdf）、文档列表管理与预览。
+- **文档添加管理** (`document_manager.py`): 支持多种添加方式（按钮选择、拖拽导入）、单个文件和文件夹批量添加、文件格式过滤验证（.docx, .doc, .pptx, .ppt, .xlsx, .xls, .pdf）、文档列表管理与预览。
 - **文件类型过滤器**: 界面顶部提供Word、PPT、Excel、PDF四个勾选框，控制扫描文件夹时包含的文档类型，默认启用Word、PPT、PDF。
 - **页数统计功能** (`page_count_manager.py`): 智能识别并统计Word、PowerPoint、Excel、PDF文档的页数/张数，支持批量统计、实时显示总页数、按文件类型分类统计，为打印成本评估提供重要参考。
 - **打印设置配置** (`settings_manager.py`): 检测和选择可用打印机、纸张尺寸设置（A4、A3、Letter等）、打印数量控制、双面打印选项、彩色/黑白模式选择。
 - **批量打印控制** (`print_controller.py`): 调用Windows系统打印API、支持Word/PPT/Excel(COM接口)和PDF(系统默认程序)的打印调度、打印队列管理、打印进度显示、错误处理和重试机制。
-- **图形用户界面** (`main_window.py`): 直观的主界面设计、文档列表展示、拖拽支持、实时状态更新、打印进度条显示、页数统计结果展示。
+- **图形用户界面** (`main_window.py`): 直观的主界面设计、文档列表展示、拖拽导入支持、实时状态更新、打印进度条显示、页数统计结果展示。
 - **应用配置管理** (`config_utils.py`): 用户偏好设置持久化、最近使用的打印设置、应用程序状态保存与恢复。
 
 ## 数据模型
@@ -119,6 +119,15 @@
 - 统计进度条和状态显示
 - 支持统计结果导出和保存
 
+### 拖拽导入功能实现 (#drag_drop_import)
+- **拖拽库集成**: 使用tkinterdnd2库提供跨平台拖拽支持
+- **多目标支持**: 支持拖拽到文档列表区域或主窗口
+- **智能识别**: 自动区分拖拽的文件和文件夹
+- **批量处理**: 支持同时拖拽多个文件和文件夹
+- **类型过滤**: 遵循用户设置的文件类型过滤器
+- **错误处理**: 完善的异常处理和用户反馈机制
+- **递归搜索**: 拖拽文件夹时自动递归搜索子目录
+
 ## 开发状态跟踪
 | 模块/功能        | 状态     | 备注与链接 |
 |------------------|----------|------------|
@@ -137,6 +146,8 @@
 | 页数统计功能     | ✅已完成  | [页数统计](#page_count_manager) |
 | 页数统计对话框   | ✅已完成  | [统计界面](#page_count_dialog) |
 | v3.0版本发布     | ✅已完成  | 页数统计功能实现 |
+| 拖拽导入功能     | ✅已完成  | [拖拽导入](#drag_drop_import) |
+| v4.0版本发布     | ✅已完成  | 拖拽导入功能实现 |
 
 ## 环境设置与运行指南
 ### 开发环境要求
@@ -163,7 +174,7 @@ python -m gui.main_window
 ### 应用构建
 ```bash
 # 手动构建（推荐）
-pyinstaller --onefile --windowed --name="办公文档批量打印器v3.0" --icon=resources/app_icon.ico main.py
+pyinstaller --onefile --windowed --name="办公文档批量打印器v4.0" --icon=resources/app_icon.ico main.py
 
 # 清理构建文件
 Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
@@ -176,7 +187,7 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 - **如果没有图标**: 将使用PyInstaller默认图标
 
 #### 构建输出
-- **可执行文件**: `dist/办公文档批量打印器v3.0.exe`
+- **可执行文件**: `dist/办公文档批量打印器v4.0.exe`
 - **文件大小**: 约30-60MB（包含所有依赖）
 - **注意**: 构建后的临时文件已配置在.gitignore中，不会提交到版本控制
 

@@ -1,5 +1,6 @@
 # GUI框架
 tkinter-tooltip==0.1.5
+tkinterdnd2==0.3.0
 
 # Windows API支持
 pywin32==306

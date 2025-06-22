@@ -17,7 +17,7 @@ try:
     def main():
         """主函数"""
         print("=" * 50)
-        print("        办公文档批量打印器 v3.0")
+        print("        办公文档批量打印器 v4.0")
         print("  支持 Word、PowerPoint、Excel、PDF 文档")
         print("=" * 50)
         

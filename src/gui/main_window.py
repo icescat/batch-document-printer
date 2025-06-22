@@ -8,6 +8,14 @@ from pathlib import Path
 from typing import List, Optional
 import threading
 
+# 拖拽支持
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    DRAG_DROP_AVAILABLE = True
+except ImportError:
+    print("警告: tkinterdnd2 未安装，拖拽功能将不可用")
+    DRAG_DROP_AVAILABLE = False
+
 from src.core.document_manager import DocumentManager
 from src.core.settings_manager import PrinterSettingsManager
 from src.core.print_controller import PrintController
@@ -22,9 +30,13 @@ class MainWindow:
     
     def __init__(self):
         """初始化主窗口"""
-        # 创建主窗口
-        self.root = tk.Tk()
-        self.root.title("办公文档批量打印器 v3.0 by.喵言喵语")
+        # 创建支持拖拽的主窗口
+        if DRAG_DROP_AVAILABLE:
+            self.root = TkinterDnD.Tk()
+        else:
+            self.root = tk.Tk()
+        
+        self.root.title("办公文档批量打印器 v4.0 by.喵言喵语")
         self.root.geometry("900x600")
         self.root.minsize(800, 500)
         
@@ -270,6 +282,76 @@ class MainWindow:
         
         # 删除键删除选中文档
         self.doc_tree.bind("<Delete>", self._on_delete_key)
+        
+        # 拖拽支持
+        if DRAG_DROP_AVAILABLE:
+            self._setup_drag_drop()
+    
+    def _setup_drag_drop(self):
+        """设置拖拽功能"""
+        try:
+            # 为文档列表区域注册拖拽
+            self.doc_tree.drop_target_register(DND_FILES)
+            self.doc_tree.dnd_bind('<<Drop>>', self._on_drop_files)
+            
+            # 为主窗口注册拖拽（备选）
+            self.root.drop_target_register(DND_FILES)
+            self.root.dnd_bind('<<Drop>>', self._on_drop_files)
+            
+            print("✓ 拖拽功能已启用")
+        except Exception as e:
+            print(f"✗ 拖拽功能初始化失败: {e}")
+    
+    def _on_drop_files(self, event):
+        """处理拖拽文件事件"""
+        try:
+            # 获取拖拽的文件路径
+            files = event.data.split()
+            if not files:
+                return
+            
+            file_paths = []
+            folder_paths = []
+            
+            # 分离文件和文件夹
+            for file_str in files:
+                # 去除可能的引号
+                file_str = file_str.strip('"\'')
+                file_path = Path(file_str)
+                
+                if file_path.exists():
+                    if file_path.is_file():
+                        file_paths.append(file_path)
+                    elif file_path.is_dir():
+                        folder_paths.append(file_path)
+            
+            # 处理文件
+            added_count = 0
+            if file_paths:
+                added_docs = self.document_manager.add_files(file_paths)
+                added_count += len(added_docs)
+                print(f"拖拽添加文件: {len(added_docs)} 个")
+            
+            # 处理文件夹
+            if folder_paths:
+                enabled_file_types = self._get_enabled_file_types()
+                for folder_path in folder_paths:
+                    # 默认递归搜索
+                    added_docs = self.document_manager.add_folder(folder_path, True, enabled_file_types)
+                    added_count += len(added_docs)
+                    print(f"拖拽添加文件夹 {folder_path.name}: {len(added_docs)} 个文档")
+            
+            # 更新界面
+            if added_count > 0:
+                self._refresh_document_list()
+                self._update_status()
+                messagebox.showinfo("拖拽导入成功", f"成功导入 {added_count} 个文档")
+            else:
+                messagebox.showwarning("拖拽导入", "未找到支持的文档格式或文件已存在")
+                
+        except Exception as e:
+            print(f"拖拽处理错误: {e}")
+            messagebox.showerror("拖拽导入失败", f"处理拖拽文件时出错：{str(e)}")
     
     def _add_files(self):
         """添加文件"""
@@ -412,7 +494,7 @@ class MainWindow:
     def _show_help(self):
         """显示使用说明"""
         help_text = """
-            📖 办公文档批量打印器使用说明 V3.0
+            📖 办公文档批量打印器使用说明 V4.0
 
 ═══════════════════════════════════════
 
@@ -431,6 +513,7 @@ class MainWindow:
 1️⃣ 添加文档
    • 点击"添加文件"选择单个或多个文档
    • 点击"添加文件夹"批量添加整个文件夹中的文档
+   • 🆕 直接拖拽文件或文件夹到程序窗口进行快速添加
    • 支持递归搜索子文件夹
    • 使用文件类型过滤器选择要扫描的文档类型（Word、PPT、Excel、PDF）
    • 默认不扫码excel，表格打印容易排版错位，请先手动调整好排版
