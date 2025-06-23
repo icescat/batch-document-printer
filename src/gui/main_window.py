@@ -36,7 +36,7 @@ class MainWindow:
         else:
             self.root = tk.Tk()
         
-        self.root.title("办公文档批量打印器 v4.0 by.喵言喵语")
+        self.root.title("办公文档批量打印器 v4.1 by.喵言喵语")
         self.root.geometry("900x600")
         self.root.minsize(800, 500)
         
@@ -305,9 +305,35 @@ class MainWindow:
     def _on_drop_files(self, event):
         """处理拖拽文件事件"""
         try:
-            # 获取拖拽的文件路径
-            files = event.data.split()
+            # 获取拖拽的文件路径并处理格式
+            raw_data = event.data.strip()
+            
+            # 处理tkinterdnd2在Windows下的特殊格式
+            # 去除可能的大括号包围
+            if raw_data.startswith('{') and raw_data.endswith('}'):
+                raw_data = raw_data[1:-1]
+            
+            # 将正斜杠转换为反斜杠（Windows路径格式）
+            if '/' in raw_data and ':' in raw_data:
+                raw_data = raw_data.replace('/', '\\')
+            
+            # 解析文件路径
+            files = []
+            if Path(raw_data).exists():
+                # 单个文件或文件夹路径
+                files = [raw_data]
+            else:
+                # 尝试解析多个文件路径（使用shlex处理引号和空格）
+                import shlex
+                try:
+                    files = shlex.split(raw_data)
+                    # 过滤出存在的路径
+                    files = [f for f in files if Path(f).exists()]
+                except Exception:
+                    files = []
+            
             if not files:
+                messagebox.showwarning("拖拽导入", "无法识别拖拽的文件路径，请确保文件或文件夹存在")
                 return
             
             file_paths = []
@@ -315,22 +341,17 @@ class MainWindow:
             
             # 分离文件和文件夹
             for file_str in files:
-                # 去除可能的引号
-                file_str = file_str.strip('"\'')
                 file_path = Path(file_str)
-                
-                if file_path.exists():
-                    if file_path.is_file():
-                        file_paths.append(file_path)
-                    elif file_path.is_dir():
-                        folder_paths.append(file_path)
+                if file_path.is_file():
+                    file_paths.append(file_path)
+                elif file_path.is_dir():
+                    folder_paths.append(file_path)
             
             # 处理文件
             added_count = 0
             if file_paths:
                 added_docs = self.document_manager.add_files(file_paths)
                 added_count += len(added_docs)
-                print(f"拖拽添加文件: {len(added_docs)} 个")
             
             # 处理文件夹
             if folder_paths:
@@ -339,7 +360,6 @@ class MainWindow:
                     # 默认递归搜索
                     added_docs = self.document_manager.add_folder(folder_path, True, enabled_file_types)
                     added_count += len(added_docs)
-                    print(f"拖拽添加文件夹 {folder_path.name}: {len(added_docs)} 个文档")
             
             # 更新界面
             if added_count > 0:
@@ -350,7 +370,6 @@ class MainWindow:
                 messagebox.showwarning("拖拽导入", "未找到支持的文档格式或文件已存在")
                 
         except Exception as e:
-            print(f"拖拽处理错误: {e}")
             messagebox.showerror("拖拽导入失败", f"处理拖拽文件时出错：{str(e)}")
     
     def _add_files(self):
@@ -494,7 +513,7 @@ class MainWindow:
     def _show_help(self):
         """显示使用说明"""
         help_text = """
-            📖 办公文档批量打印器使用说明 V4.0
+            📖 办公文档批量打印器使用说明 V4.1
 
 ═══════════════════════════════════════
 
@@ -565,8 +584,6 @@ class MainWindow:
 🔹 使用提示
 • 打印前请确保打印机正常连接
 • 大批量打印时请确保纸张充足
-• PDF文件使用系统默认程序打印
-• Word、PowerPoint和Excel通过Office应用打印
 • 使用文件类型过滤器可控制扫描文件夹时包含的文档类型
 • 打印过程中请勿关闭应用程序
 
@@ -579,8 +596,17 @@ class MainWindow:
 
 ═══════════════════════════════════════
 
+📚 版本历史
+• v1.0 - 批量打印：实现基础的文档批量打印功能
+• v2.0 - Excel支持：新增Excel文档打印支持
+• v3.0 - 页数统计：添加文档页数统计和报告功能
+• v4.0 - 拖拽支持：支持拖拽文件和文件夹快速导入
+• v4.1 - 修复拖拽BUG：解决文件名含空格的拖拽导入问题
+
+═══════════════════════════════════════
+
 💝 感谢使用办公文档批量打印器！
-开发者：喵言喵语 2025.6.22 by.52pojie
+开发者：喵言喵语 2025.6.23 by.52pojie
         """
         
         # 创建帮助窗口

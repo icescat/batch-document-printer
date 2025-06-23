@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ===============================================
-echo          办公文档批量打印器 v4.0 构建脚本
+echo          办公文档批量打印器 v4.1 构建脚本
 echo ===============================================
 echo.
 
@@ -33,7 +33,7 @@ echo ✓ 清理完成
 
 echo [4/4] 开始构建...
 echo 使用专用spec文件构建，包含tkinterdnd2支持...
-pyinstaller --clean "办公文档批量打印器v4.0.spec"
+pyinstaller --clean "办公文档批量打印器v4.1.spec"
 
 if %errorlevel% neq 0 (
     echo ❌ 构建失败
@@ -44,9 +44,9 @@ if %errorlevel% neq 0 (
 echo.
 echo ===============================================
 echo ✅ 构建完成！
-echo 📁 输出位置: dist\办公文档批量打印器v4.0.exe
-if exist "dist\办公文档批量打印器v4.0.exe" (
-    for %%A in ("dist\办公文档批量打印器v4.0.exe") do (
+echo 📁 输出位置: dist\办公文档批量打印器v4.1.exe
+if exist "dist\办公文档批量打印器v4.1.exe" (
+    for %%A in ("dist\办公文档批量打印器v4.1.exe") do (
         set size=%%~zA
         set /a sizeMB=!size!/1024/1024
         echo 📊 文件大小: !sizeMB! MB
@@ -59,7 +59,7 @@ echo 是否要测试运行构建的程序？(Y/N)
 set /p choice=
 if /i "%choice%"=="Y" (
     echo 正在启动...
-    start "" "dist\办公文档批量打印器v4.0.exe"
+    start "" "dist\办公文档批量打印器v4.1.exe"
 )
 
 echo 构建完成，按任意键退出...
