@@ -16,6 +16,8 @@ class FileType(Enum):
     PPT = "ppt"
     EXCEL = "excel"
     PDF = "pdf"
+    IMAGE = "image"
+    TEXT = "text"
 
 
 class PrintStatus(Enum):
@@ -56,14 +58,18 @@ class Document:
         
         # 根据文件扩展名确定文件类型
         suffix = self.file_path.suffix.lower()
-        if suffix in ['.doc', '.docx']:
+        if suffix in ['.doc', '.docx', '.wps']:  # 添加WPS文字格式
             self.file_type = FileType.WORD
-        elif suffix in ['.ppt', '.pptx']:
+        elif suffix in ['.ppt', '.pptx', '.dps']:  # 添加WPS演示格式
             self.file_type = FileType.PPT
-        elif suffix in ['.xls', '.xlsx']:
+        elif suffix in ['.xls', '.xlsx', '.et']:  # 添加WPS表格格式
             self.file_type = FileType.EXCEL
         elif suffix == '.pdf':
             self.file_type = FileType.PDF
+        elif suffix in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp']:
+            self.file_type = FileType.IMAGE
+        elif suffix == '.txt':
+            self.file_type = FileType.TEXT
         else:
             raise ValueError(f"不支持的文件类型: {suffix}")
     
@@ -79,7 +85,9 @@ class Document:
             FileType.WORD: "Word文档",
             FileType.PPT: "PowerPoint",
             FileType.EXCEL: "Excel表格",
-            FileType.PDF: "PDF文件"
+            FileType.PDF: "PDF文件",
+            FileType.IMAGE: "图片文件",
+            FileType.TEXT: "文本文件"
         }
         return type_map.get(self.file_type, "未知")
 
@@ -90,9 +98,9 @@ class PrintSettings:
     printer_name: str = ""
     paper_size: str = "A4"
     copies: int = 1
-    duplex: bool = False
-    color_mode: ColorMode = ColorMode.COLOR
-    orientation: Orientation = Orientation.PORTRAIT
+    duplex: bool = True  # 默认启用双面打印
+    color_mode: ColorMode = ColorMode.GRAYSCALE  # 默认黑白打印
+    orientation: Orientation = Orientation.PORTRAIT  # 默认竖向
     
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -112,8 +120,8 @@ class PrintSettings:
             printer_name=data.get('printer_name', ''),
             paper_size=data.get('paper_size', 'A4'),
             copies=data.get('copies', 1),
-            duplex=data.get('duplex', False),
-            color_mode=ColorMode(data.get('color_mode', 'color')),
+            duplex=data.get('duplex', True),  # 默认启用双面打印
+            color_mode=ColorMode(data.get('color_mode', 'grayscale')),  # 默认黑白
             orientation=Orientation(data.get('orientation', 'portrait'))
         )
 
@@ -125,12 +133,14 @@ class AppConfig:
     default_settings: PrintSettings = field(default_factory=PrintSettings)
     window_geometry: dict = field(default_factory=dict)
     recent_folders: List[str] = field(default_factory=list)
-    # 文件类型过滤器设置 - 默认启用Word、PPT、PDF，不启用Excel
+    # 文件类型过滤器设置 - 默认启用Word、PPT、PDF、图片、文本，不启用Excel
     enabled_file_types: dict = field(default_factory=lambda: {
         'word': True,
         'ppt': True,
         'excel': False,
-        'pdf': True
+        'pdf': True,
+        'image': True,
+        'text': True
     })
     
     def to_dict(self) -> dict:
@@ -151,7 +161,9 @@ class AppConfig:
             'word': True,
             'ppt': True,
             'excel': False,
-            'pdf': True
+            'pdf': True,
+            'image': True,
+            'text': True
         }
         enabled_types = data.get('enabled_file_types', default_enabled_types)
         # 确保所有文件类型都有设置

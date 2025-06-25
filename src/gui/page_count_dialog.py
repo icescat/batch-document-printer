@@ -189,7 +189,12 @@ class PageCountResultDialog:
         # 总页数
         ttk.Label(overview_frame, text="总页数:", font=("", 10, "bold")).grid(
             row=0, column=col, sticky="w", padx=(0, 5))
-        ttk.Label(overview_frame, text=f"{self.summary.total_pages:,} 页", 
+        
+        # 检查是否有Excel文件参与统计，如果有则添加"约"字
+        has_excel = self.summary.excel_files > 0
+        total_pages_text = f"约{self.summary.total_pages:,} 页" if has_excel else f"{self.summary.total_pages:,} 页"
+        
+        ttk.Label(overview_frame, text=total_pages_text, 
                  font=("", 10)).grid(row=0, column=col+1, sticky="w", padx=(0, 20))
         col += 2
         
@@ -242,8 +247,12 @@ class PageCountResultDialog:
         # Excel统计
         ttk.Label(type_frame, text="Excel:", font=("", 10, "bold")).grid(
             row=0, column=col, sticky="w", padx=(0, 5))
+        
+        # Excel页数显示时添加"约"字，提醒用户不确定性
+        excel_pages_text = f"{self.summary.excel_files}个 / 约{self.summary.excel_pages:,}页" if self.summary.excel_files > 0 else f"{self.summary.excel_files}个 / {self.summary.excel_pages:,}页"
+        
         ttk.Label(type_frame, 
-                 text=f"{self.summary.excel_files}个 / {self.summary.excel_pages:,}页",
+                 text=excel_pages_text,
                  font=("", 10)).grid(row=0, column=col+1, sticky="w", padx=(0, 20))
         col += 2
         
@@ -252,6 +261,14 @@ class PageCountResultDialog:
             row=0, column=col, sticky="w", padx=(0, 5))
         ttk.Label(type_frame, 
                  text=f"{self.summary.pdf_files}个 / {self.summary.pdf_pages:,}页",
+                 font=("", 10)).grid(row=0, column=col+1, sticky="w", padx=(0, 20))
+        col += 2
+        
+        # 图片统计
+        ttk.Label(type_frame, text="图片:", font=("", 10, "bold")).grid(
+            row=0, column=col, sticky="w", padx=(0, 5))
+        ttk.Label(type_frame, 
+                 text=f"{self.summary.image_files}个 / {self.summary.image_pages:,}页",
                  font=("", 10)).grid(row=0, column=col+1, sticky="w")
     
     def _create_problems_section(self, parent):
@@ -288,7 +305,8 @@ class PageCountResultDialog:
                     FileType.WORD: "Word文档",
                     FileType.PPT: "PowerPoint",
                     FileType.EXCEL: "Excel表格",
-                    FileType.PDF: "PDF文件"
+                    FileType.PDF: "PDF文件",
+                    FileType.IMAGE: "图片文件"
                 }.get(result.document.file_type, "未知类型")
                 
                 tree.insert("", "end", values=(
@@ -389,7 +407,8 @@ class PageCountResultDialog:
             else:
                 self._export_to_text(file_path, include_all=True)
             
-            messagebox.showinfo("成功", f"报告已导出到: {file_path}")
+            # 去掉导出成功提示窗口
+            print(f"报告已导出到: {file_path}")
             
         except PermissionError:
             messagebox.showerror("导出失败", "文件正在被其他程序使用，请关闭相关文件后重试")
@@ -428,7 +447,8 @@ class PageCountResultDialog:
             else:
                 self._export_to_text(file_path, include_all=False)
             
-            messagebox.showinfo("成功", f"错误报告已导出到: {file_path}")
+            # 去掉导出成功提示窗口
+            print(f"错误报告已导出到: {file_path}")
             
         except PermissionError:
             messagebox.showerror("导出失败", "文件正在被其他程序使用，请关闭相关文件后重试")
@@ -466,15 +486,21 @@ class PageCountResultDialog:
                         FileType.WORD: "Word文档",
                         FileType.PPT: "PowerPoint",
                         FileType.EXCEL: "Excel表格",
-                        FileType.PDF: "PDF文件"
+                        FileType.PDF: "PDF文件",
+                        FileType.IMAGE: "图片文件"
                     }.get(result.document.file_type, "未知")
                     
                     status_display = "成功" if result.page_count is not None else self._get_problem_description(result)
                     
+                    # 如果是Excel文件且有页数，在页数前添加"约"字
+                    page_count_display = result.page_count or "N/A"
+                    if result.page_count is not None and result.document.file_type == FileType.EXCEL:
+                        page_count_display = f"约{result.page_count}"
+                    
                     writer.writerow([
                         result.document.file_name,
                         file_type_display,
-                        result.page_count or "N/A",
+                        page_count_display,
                         status_display,
                         str(result.document.file_path),
                         result.error_message
@@ -488,7 +514,8 @@ class PageCountResultDialog:
                         FileType.WORD: "Word文档",
                         FileType.PPT: "PowerPoint",
                         FileType.EXCEL: "Excel表格",
-                        FileType.PDF: "PDF文件"
+                        FileType.PDF: "PDF文件",
+                        FileType.IMAGE: "图片文件"
                     }.get(result.document.file_type, "未知类型")
                     
                     writer.writerow([
@@ -507,23 +534,30 @@ class PageCountResultDialog:
             # 统计概览
             f.write("统计概览:\n")
             f.write(f"  总文档数: {self.summary.total_files} 个\n")
-            f.write(f"  总页数: {self.summary.total_pages:,} 页\n")
+            
+            # 如果有Excel文件参与统计，在总页数前添加"约"字
+            total_pages_text = f"约{self.summary.total_pages:,}" if self.summary.excel_files > 0 else f"{self.summary.total_pages:,}"
+            f.write(f"  总页数: {total_pages_text} 页\n")
+            
             f.write(f"  成功计算: {self.summary.success_count} 个\n")
             f.write(f"  跳过文件: {self.summary.skipped_count} 个\n")
             f.write(f"  计算失败: {self.summary.error_count} 个\n\n")
             
             # 按类型统计
             if self.summary.word_files > 0 or self.summary.ppt_files > 0 or \
-               self.summary.excel_files > 0 or self.summary.pdf_files > 0:
+               self.summary.excel_files > 0 or self.summary.pdf_files > 0 or \
+               self.summary.image_files > 0:
                 f.write("按文件类型统计:\n")
                 if self.summary.word_files > 0:
                     f.write(f"  Word文档: {self.summary.word_files}个文件, {self.summary.word_pages:,}页\n")
                 if self.summary.ppt_files > 0:
                     f.write(f"  PowerPoint: {self.summary.ppt_files}个文件, {self.summary.ppt_pages:,}页\n")
                 if self.summary.excel_files > 0:
-                    f.write(f"  Excel表格: {self.summary.excel_files}个文件, {self.summary.excel_pages:,}页 (估算)\n")
+                    f.write(f"  Excel表格: {self.summary.excel_files}个文件, 约{self.summary.excel_pages:,}页 (估算)\n")
                 if self.summary.pdf_files > 0:
                     f.write(f"  PDF文件: {self.summary.pdf_files}个文件, {self.summary.pdf_pages:,}页\n")
+                if self.summary.image_files > 0:
+                    f.write(f"  图片文件: {self.summary.image_files}个文件, {self.summary.image_pages:,}页\n")
                 f.write("\n")
             
             # 问题文件列表
@@ -540,39 +574,41 @@ class PageCountResultDialog:
     def _export_to_excel(self, file_path: Path, include_all: bool = True):
         """导出到Excel文件（需要openpyxl库）"""
         try:
-            import openpyxl
-            from openpyxl.styles import Font, PatternFill
+            import openpyxl  # type: ignore
+            from openpyxl.styles import Font, PatternFill  # type: ignore
             
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "页数统计报告"
-            
-            # 设置标题
-            headers = ['文件名', '文件类型', '文件路径']
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
-            
-            # 写入数据（简化版本，只写入问题文件）
-            row = 2
-            for result in self.summary.skipped_files + self.summary.error_files:
-                file_type_display = {
-                    FileType.WORD: "Word文档",
-                    FileType.PPT: "PowerPoint",
-                    FileType.EXCEL: "Excel表格",
-                    FileType.PDF: "PDF文件"
-                }.get(result.document.file_type, "未知")
+            if ws is not None:  # 类型安全检查
+                ws.title = "页数统计报告"  # type: ignore
                 
-                ws.cell(row=row, column=1, value=result.document.file_name)
-                ws.cell(row=row, column=2, value=file_type_display)
-                ws.cell(row=row, column=3, value=str(result.document.file_path))
-                row += 1
-            
-            # 调整列宽
-            ws.column_dimensions['A'].width = 30
-            ws.column_dimensions['B'].width = 15
-            ws.column_dimensions['C'].width = 50
+                # 设置标题
+                headers = ['文件名', '文件类型', '文件路径']
+                for col, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col, value=header)  # type: ignore
+                    cell.font = Font(bold=True)  # type: ignore
+                    cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")  # type: ignore
+                
+                # 写入数据（简化版本，只写入问题文件）
+                row = 2
+                for result in self.summary.skipped_files + self.summary.error_files:
+                    file_type_display = {
+                        FileType.WORD: "Word文档",
+                        FileType.PPT: "PowerPoint",
+                        FileType.EXCEL: "Excel表格",
+                        FileType.PDF: "PDF文件",
+                        FileType.IMAGE: "图片文件"
+                    }.get(result.document.file_type, "未知")
+                    
+                    ws.cell(row=row, column=1, value=result.document.file_name)  # type: ignore
+                    ws.cell(row=row, column=2, value=file_type_display)  # type: ignore
+                    ws.cell(row=row, column=3, value=str(result.document.file_path))  # type: ignore
+                    row += 1
+                
+                # 调整列宽
+                ws.column_dimensions['A'].width = 30  # type: ignore
+                ws.column_dimensions['B'].width = 15  # type: ignore
+                ws.column_dimensions['C'].width = 50  # type: ignore
             
             wb.save(file_path)
             

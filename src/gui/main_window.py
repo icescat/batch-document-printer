@@ -1,6 +1,6 @@
 """
 主窗口界面
-办公文档批量打印应用的主界面
+办公文档批量打印应用的主界面 (重构版本)
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -24,9 +24,12 @@ from src.utils.config_utils import ConfigManager
 from src.gui.print_settings_dialog import PrintSettingsDialog
 from src.gui.page_count_dialog import show_page_count_dialog
 
+# 导入功能处理器
+from src.gui.components import FileImportHandler, ListOperationHandler, WindowManager, create_button_tooltip
+
 
 class MainWindow:
-    """主窗口类"""
+    """主窗口类 (重构版本)"""
     
     def __init__(self):
         """初始化主窗口"""
@@ -36,11 +39,7 @@ class MainWindow:
         else:
             self.root = tk.Tk()
         
-        self.root.title("办公文档批量打印器 v4.1 by.喵言喵语")
-        self.root.geometry("900x600")
-        self.root.minsize(800, 500)
-        
-        # 初始化管理器
+        # 初始化核心管理器
         self.document_manager = DocumentManager()
         self.printer_manager = PrinterSettingsManager()
         self.print_controller = PrintController()
@@ -49,6 +48,9 @@ class MainWindow:
         # 加载配置
         self.app_config = self.config_manager.load_app_config()
         self.current_print_settings = self.config_manager.load_print_settings()
+        
+        # 初始化功能处理器
+        self._setup_handlers()
         
         # 设置打印控制器
         self.print_controller.set_print_settings(self.current_print_settings)
@@ -59,64 +61,44 @@ class MainWindow:
         self._setup_layout()
         self._bind_events()
         
-        # 恢复窗口几何属性
-        self._restore_window_geometry()
+        # 设置窗口属性
+        self._setup_window()
         
-        print("批量文档打印器已启动")
+        print("批量文档打印器已启动 (重构版本)")
+    
+    def _setup_handlers(self):
+        """初始化功能处理器"""
+        # 窗口管理器
+        self.window_manager = WindowManager(self.root, self.config_manager)
+        
+        # 文件导入处理器 (需要在创建界面后初始化拖拽功能)
+        self.file_import_handler = FileImportHandler(
+            self.document_manager, 
+            self._get_enabled_file_types,
+            self._on_files_imported
+        )
+        
+        # 列表操作处理器 (需要在创建树形控件后初始化)
+        self.list_operation_handler = None  # 稍后初始化
+    
+    def _setup_window(self):
+        """设置窗口属性"""
+        # 设置窗口标题
+        self.window_manager.set_window_title("办公文档批量打印器", "v5.0 by.喵言喵语")
+        
+        # 设置窗口最小尺寸
+        self.window_manager.set_window_minimum_size(800, 500)
+        
+        # 恢复窗口几何属性
+        self.window_manager.restore_window_geometry(self.app_config)
+        
+        # 设置窗口关闭处理
+        self.window_manager.setup_window_close_handler(self._on_window_closing)
     
     def _create_widgets(self):
         """创建界面组件"""
         # 工具栏
-        self.toolbar = ttk.Frame(self.root)
-        
-        # 添加文件按钮
-        self.btn_add_files = ttk.Button(
-            self.toolbar, text="添加文件", 
-            command=self._add_files
-        )
-        
-        # 添加文件夹按钮
-        self.btn_add_folder = ttk.Button(
-            self.toolbar, text="添加文件夹", 
-            command=self._add_folder
-        )
-        
-        # 删除选中按钮
-        self.btn_remove_selected = ttk.Button(
-            self.toolbar, text="删除选中", 
-            command=self._remove_selected_documents
-        )
-        
-        # 清空列表按钮
-        self.btn_clear = ttk.Button(
-            self.toolbar, text="清空列表", 
-            command=self._clear_documents
-        )
-        
-        # 打印设置按钮
-        self.btn_print_settings = ttk.Button(
-            self.toolbar, text="打印设置", 
-            command=self._show_print_settings
-        )
-        
-        # 使用说明按钮
-        self.btn_help = ttk.Button(
-            self.toolbar, text="使用说明", 
-            command=self._show_help
-        )
-        
-        # 计算页数按钮
-        self.btn_calculate_pages = ttk.Button(
-            self.toolbar, text="计算页数", 
-            command=self._calculate_pages
-        )
-        
-        # 开始打印按钮
-        self.btn_start_print = ttk.Button(
-            self.toolbar, text="开始打印", 
-            command=self._start_printing,
-            style="Accent.TButton"
-        )
+        self._create_toolbar()
         
         # 主要内容区域
         self.main_frame = ttk.Frame(self.root)
@@ -129,52 +111,134 @@ class MainWindow:
         
         # 进度区域
         self._create_progress_area()
+        
+        # 创建列表操作处理器 (现在树形控件已创建)
+        self.list_operation_handler = ListOperationHandler(
+            self.document_manager, 
+            self.doc_tree,
+            self._on_list_operation_completed
+        )
+        
+        # 设置界面提示功能
+        self._setup_tooltips()
+    
+    def _create_toolbar(self):
+        """创建工具栏"""
+        self.toolbar = ttk.Frame(self.root)
+        
+        # 文件操作按钮
+        self.btn_add_files = ttk.Button(
+            self.toolbar, text="添加文件", 
+            command=self._add_files
+        )
+        
+        self.btn_add_folder = ttk.Button(
+            self.toolbar, text="添加文件夹", 
+            command=self._add_folder
+        )
+        
+        self.btn_remove_selected = ttk.Button(
+            self.toolbar, text="删除选中", 
+            command=self._remove_selected_documents
+        )
+        
+        self.btn_clear = ttk.Button(
+            self.toolbar, text="清空列表", 
+            command=self._clear_documents
+        )
+        
+        # 功能按钮
+        self.btn_print_settings = ttk.Button(
+            self.toolbar, text="打印设置", 
+            command=self._show_print_settings
+        )
+        
+        self.btn_help = ttk.Button(
+            self.toolbar, text="使用说明", 
+            command=self._show_help
+        )
+        
+        self.btn_calculate_pages = ttk.Button(
+            self.toolbar, text="计算页数", 
+            command=self._calculate_pages
+        )
+        
+        self.btn_start_print = ttk.Button(
+            self.toolbar, text="开始打印", 
+            command=self._start_printing,
+            style="Accent.TButton"
+        )
     
     def _create_document_list(self):
         """创建文档列表组件"""
-        # 创建标题框架用于放置在LabelFrame的标题位置
+        # 创建标题框架
         title_frame = ttk.Frame(self.main_frame)
         
         # 文档列表标题
         title_label = ttk.Label(title_frame, text="文档列表")
         
-        # 文件类型勾选框变量
-        self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
-        self.var_ppt = tk.BooleanVar(value=self.app_config.enabled_file_types.get('ppt', True))
-        self.var_excel = tk.BooleanVar(value=self.app_config.enabled_file_types.get('excel', False))
-        self.var_pdf = tk.BooleanVar(value=self.app_config.enabled_file_types.get('pdf', True))
-        
-        # 文件类型勾选框
-        self.chk_word = ttk.Checkbutton(
-            title_frame, text="Word", variable=self.var_word,
-            command=self._on_filter_changed
-        )
-        self.chk_ppt = ttk.Checkbutton(
-            title_frame, text="PPT", variable=self.var_ppt,
-            command=self._on_filter_changed
-        )
-        self.chk_excel = ttk.Checkbutton(
-            title_frame, text="Excel", variable=self.var_excel,
-            command=self._on_filter_changed
-        )
-        self.chk_pdf = ttk.Checkbutton(
-            title_frame, text="PDF", variable=self.var_pdf,
-            command=self._on_filter_changed
-        )
-        
-        # 布局标题和过滤器
-        title_label.pack(side="left")
-        self.chk_word.pack(side="left", padx=(10, 2))
-        self.chk_ppt.pack(side="left", padx=2)
-        self.chk_excel.pack(side="left", padx=2)
-        self.chk_pdf.pack(side="left", padx=2)
+        # 文件类型过滤器
+        self._create_file_type_filters(title_frame)
         
         # 文档列表框架
         list_frame = ttk.LabelFrame(self.main_frame, labelwidget=title_frame, padding="5")
         self.list_frame = list_frame
         
+        # 创建树形视图
+        self._create_tree_view(list_frame)
+    
+    def _create_file_type_filters(self, parent):
+        """创建文件类型过滤器"""
+        # 文件类型勾选框变量
+        self.var_word = tk.BooleanVar(value=self.app_config.enabled_file_types.get('word', True))
+        self.var_ppt = tk.BooleanVar(value=self.app_config.enabled_file_types.get('ppt', True))
+        self.var_excel = tk.BooleanVar(value=self.app_config.enabled_file_types.get('excel', False))
+        self.var_pdf = tk.BooleanVar(value=self.app_config.enabled_file_types.get('pdf', True))
+        self.var_image = tk.BooleanVar(value=self.app_config.enabled_file_types.get('image', True))
+        self.var_text = tk.BooleanVar(value=self.app_config.enabled_file_types.get('text', True))
+        
+        # 标题
+        title_label = ttk.Label(parent, text="文档列表")
+        title_label.pack(side="left")
+        
+        # 文件类型勾选框
+        self.chk_word = ttk.Checkbutton(
+            parent, text="Word", variable=self.var_word,
+            command=self._on_filter_changed
+        )
+        self.chk_ppt = ttk.Checkbutton(
+            parent, text="PPT", variable=self.var_ppt,
+            command=self._on_filter_changed
+        )
+        self.chk_excel = ttk.Checkbutton(
+            parent, text="Excel", variable=self.var_excel,
+            command=self._on_filter_changed
+        )
+        self.chk_pdf = ttk.Checkbutton(
+            parent, text="PDF", variable=self.var_pdf,
+            command=self._on_filter_changed
+        )
+        self.chk_image = ttk.Checkbutton(
+            parent, text="图片", variable=self.var_image,
+            command=self._on_filter_changed
+        )
+        self.chk_text = ttk.Checkbutton(
+            parent, text="文本", variable=self.var_text,
+            command=self._on_filter_changed
+        )
+        
+        # 布局
+        self.chk_word.pack(side="left", padx=(10, 2))
+        self.chk_ppt.pack(side="left", padx=2)
+        self.chk_excel.pack(side="left", padx=2)
+        self.chk_pdf.pack(side="left", padx=2)
+        self.chk_image.pack(side="left", padx=2)
+        self.chk_text.pack(side="left", padx=2)
+    
+    def _create_tree_view(self, parent):
+        """创建树形视图"""
         # 创建树形视图容器
-        tree_frame = ttk.Frame(list_frame)
+        tree_frame = ttk.Frame(parent)
         tree_frame.pack(fill="both", expand=True)
         
         # 创建Treeview
@@ -188,22 +252,19 @@ class MainWindow:
         self.doc_tree.heading("状态", text="状态")
         self.doc_tree.heading("路径", text="文件路径")
         
-        self.doc_tree.column("文件名", width=200)
-        self.doc_tree.column("类型", width=100)
+        self.doc_tree.column("文件名", width=240)
+        self.doc_tree.column("类型", width=80)
         self.doc_tree.column("大小", width=80)
-        self.doc_tree.column("状态", width=80)
-        self.doc_tree.column("路径", width=300)
+        self.doc_tree.column("状态", width=50)
+        self.doc_tree.column("路径", width=310)
         
         # 滚动条
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.doc_tree.yview)
         self.doc_tree.configure(yscrollcommand=scrollbar.set)
         
         # 布局
-        self.doc_tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        
-        tree_frame.grid_rowconfigure(0, weight=1)
-        tree_frame.grid_columnconfigure(0, weight=1)
+        self.doc_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
     
     def _create_status_area(self):
         """创建状态显示区域"""
@@ -251,7 +312,7 @@ class MainWindow:
         self.btn_print_settings.pack(side="left", padx=10)
         self.btn_help.pack(side="left", padx=2)
         
-        # 右侧按钮（从右到左的顺序）
+        # 右侧按钮
         self.btn_start_print.pack(side="right", padx=5)
         self.btn_calculate_pages.pack(side="right", padx=2)
         
@@ -271,214 +332,108 @@ class MainWindow:
     
     def _bind_events(self):
         """绑定事件"""
-        # 窗口关闭事件
-        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+        # 确保列表操作处理器已初始化
+        if self.list_operation_handler:
+            # 设置列排序功能
+            self.list_operation_handler.setup_column_sorting()
         
-        # 文档列表右键菜单
+        # 设置拖拽功能
+        self.file_import_handler.setup_drag_drop(self.doc_tree)
+        
+        # 创建右键菜单
+        self._create_context_menu()
+        
+        # 文档列表事件
         self.doc_tree.bind("<Button-3>", self._show_context_menu)
-        
-        # 双击文档列表项打开文件
         self.doc_tree.bind("<Double-1>", self._on_double_click)
-        
-        # 删除键删除选中文档
         self.doc_tree.bind("<Delete>", self._on_delete_key)
+    
+    def _setup_tooltips(self):
+        """设置界面提示功能"""
+        # 只为文件类型过滤器添加tooltip
+        create_button_tooltip(self.chk_word, 
+            "Word文档过滤器\n支持格式: .doc, .docx, .wps")
         
-        # 拖拽支持
-        if DRAG_DROP_AVAILABLE:
-            self._setup_drag_drop()
+        create_button_tooltip(self.chk_ppt, 
+            "PowerPoint演示文稿过滤器\n支持格式: .ppt, .pptx, .dps")
+        
+        create_button_tooltip(self.chk_excel, 
+            "Excel表格过滤器\n支持格式: .xls, .xlsx, .et\n注意:此格式只能模糊统计页数，请先手动再文件内排版好再打印")
+        
+        create_button_tooltip(self.chk_pdf, 
+            "PDF文档过滤器\n支持标准PDF文件")
+        
+        create_button_tooltip(self.chk_image, 
+            "图片文件过滤器\n支持格式: .jpg, .jpeg, .png, .bmp, .tiff, .tif, .webp\n注意: TIFF可能包含多页，其他图片按1页计算")
+        
+        create_button_tooltip(self.chk_text, 
+            "文本文件过滤器\n支持格式: .txt\n注意:此格式只能模糊统计页数")
+        
+
     
-    def _setup_drag_drop(self):
-        """设置拖拽功能"""
-        try:
-            # 为文档列表区域注册拖拽
-            self.doc_tree.drop_target_register(DND_FILES)
-            self.doc_tree.dnd_bind('<<Drop>>', self._on_drop_files)
-            
-            # 为主窗口注册拖拽（备选）
-            self.root.drop_target_register(DND_FILES)
-            self.root.dnd_bind('<<Drop>>', self._on_drop_files)
-            
-            print("✓ 拖拽功能已启用")
-        except Exception as e:
-            print(f"✗ 拖拽功能初始化失败: {e}")
+
     
-    def _on_drop_files(self, event):
-        """处理拖拽文件事件"""
-        try:
-            # 获取拖拽的文件路径并处理格式
-            raw_data = event.data.strip()
-            
-            # 处理tkinterdnd2在Windows下的特殊格式
-            # 去除可能的大括号包围
-            if raw_data.startswith('{') and raw_data.endswith('}'):
-                raw_data = raw_data[1:-1]
-            
-            # 将正斜杠转换为反斜杠（Windows路径格式）
-            if '/' in raw_data and ':' in raw_data:
-                raw_data = raw_data.replace('/', '\\')
-            
-            # 解析文件路径
-            files = []
-            if Path(raw_data).exists():
-                # 单个文件或文件夹路径
-                files = [raw_data]
-            else:
-                # 尝试解析多个文件路径（使用shlex处理引号和空格）
-                import shlex
-                try:
-                    files = shlex.split(raw_data)
-                    # 过滤出存在的路径
-                    files = [f for f in files if Path(f).exists()]
-                except Exception:
-                    files = []
-            
-            if not files:
-                messagebox.showwarning("拖拽导入", "无法识别拖拽的文件路径，请确保文件或文件夹存在")
-                return
-            
-            file_paths = []
-            folder_paths = []
-            
-            # 分离文件和文件夹
-            for file_str in files:
-                file_path = Path(file_str)
-                if file_path.is_file():
-                    file_paths.append(file_path)
-                elif file_path.is_dir():
-                    folder_paths.append(file_path)
-            
-            # 处理文件
-            added_count = 0
-            if file_paths:
-                added_docs = self.document_manager.add_files(file_paths)
-                added_count += len(added_docs)
-            
-            # 处理文件夹
-            if folder_paths:
-                enabled_file_types = self._get_enabled_file_types()
-                for folder_path in folder_paths:
-                    # 默认递归搜索
-                    added_docs = self.document_manager.add_folder(folder_path, True, enabled_file_types)
-                    added_count += len(added_docs)
-            
-            # 更新界面
-            if added_count > 0:
-                self._refresh_document_list()
-                self._update_status()
-                messagebox.showinfo("拖拽导入成功", f"成功导入 {added_count} 个文档")
-            else:
-                messagebox.showwarning("拖拽导入", "未找到支持的文档格式或文件已存在")
-                
-        except Exception as e:
-            messagebox.showerror("拖拽导入失败", f"处理拖拽文件时出错：{str(e)}")
-    
+    # === 文件操作相关方法 ===
     def _add_files(self):
         """添加文件"""
-        file_types = [
-            ("支持的文档", "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx"),
-            ("PDF文件", "*.pdf"),
-            ("Word文档", "*.doc;*.docx"),
-            ("PowerPoint", "*.ppt;*.pptx"),
-            ("Excel表格", "*.xls;*.xlsx"),
-            ("所有文件", "*.*")
-        ]
-        
-        files = filedialog.askopenfilenames(
-            title="选择要打印的文档",
-            filetypes=file_types
-        )
-        
-        if files:
-            file_paths = [Path(f) for f in files]
-            added_docs = self.document_manager.add_files(file_paths)
-            
-            if added_docs:
-                self._refresh_document_list()
-                self._update_status()
-                messagebox.showinfo("成功", f"成功添加 {len(added_docs)} 个文档")
+        added_count = self.file_import_handler.add_files_dialog()
+        if added_count > 0:
+            self._refresh_document_list()
+            self._update_status()
     
     def _add_folder(self):
         """添加文件夹"""
-        folder = filedialog.askdirectory(title="选择包含文档的文件夹")
-        
-        if folder:
-            folder_path = Path(folder)
-            
-            # 询问是否递归搜索
-            recursive = messagebox.askyesno(
-                "搜索选项", 
-                "是否搜索子文件夹中的文档？"
-            )
-            
-            # 获取当前的文件类型过滤设置
-            enabled_file_types = self._get_enabled_file_types()
-            
-            added_docs = self.document_manager.add_folder(folder_path, recursive, enabled_file_types)
-            
-            if added_docs:
-                self._refresh_document_list()
-                self._update_status()
-                messagebox.showinfo("成功", f"从文件夹中成功添加 {len(added_docs)} 个文档")
-            else:
-                messagebox.showwarning("提示", "在指定文件夹中未找到支持的文档")
+        added_count = self.file_import_handler.add_folder_dialog()
+        if added_count > 0:
+            self._refresh_document_list()
+            self._update_status()
     
+    def _remove_selected_documents(self):
+        """删除选中的文档"""
+        if not self.list_operation_handler:
+            return
+        removed_count = self.list_operation_handler.remove_selected_documents()
+        if removed_count > 0:
+            self._refresh_document_list()
+            self._update_status()
+    
+    def _clear_documents(self):
+        """清空文档列表"""
+        if not self.list_operation_handler:
+            return
+        if self.list_operation_handler.clear_all_documents():
+            self._refresh_document_list()
+            self._update_status()
+    
+    # === 文件类型过滤器相关 ===
     def _get_enabled_file_types(self) -> dict:
         """获取当前启用的文件类型"""
         return {
             'word': self.var_word.get(),
             'ppt': self.var_ppt.get(),
             'excel': self.var_excel.get(),
-            'pdf': self.var_pdf.get()
+            'pdf': self.var_pdf.get(),
+            'image': self.var_image.get(),
+            'text': self.var_text.get()
         }
     
     def _on_filter_changed(self):
         """文件类型过滤器变更事件"""
-        # 更新应用配置
-        self.app_config.enabled_file_types = self._get_enabled_file_types()
-        
-        # 保存配置
-        self.config_manager.save_app_config(self.app_config)
-        
-        print(f"文件类型过滤器已更新: {self.app_config.enabled_file_types}")
+        enabled_types = self._get_enabled_file_types()
+        self.window_manager.save_user_preferences(self.app_config, enabled_types)
+        print(f"文件类型过滤器已更新: {enabled_types}")
     
-    def _remove_selected_documents(self):
-        """删除选中的文档"""
-        selection = self.doc_tree.selection()
-        if not selection:
-            messagebox.showinfo("提示", "请先选择要删除的文档")
-            return
-        
-        if messagebox.askyesno("确认", f"确定要删除选中的 {len(selection)} 个文档吗？"):
-            # 获取选中文档的文件名并删除
-            removed_count = 0
-            for item in selection:
-                values = self.doc_tree.item(item, 'values')
-                if values:
-                    file_name = values[0]
-                    # 从文档管理器中找到并移除对应文档
-                    for doc in self.document_manager.documents:
-                        if doc.file_name == file_name:
-                            if self.document_manager.remove_document(doc.id):
-                                removed_count += 1
-                            break
-            
-            # 刷新显示
-            self._refresh_document_list()
-            self._update_status()
-            
-            if removed_count > 0:
-                messagebox.showinfo("完成", f"已删除 {removed_count} 个文档")
+    def _on_files_imported(self):
+        """文件导入完成后的回调函数"""
+        self._refresh_document_list()
+        self._update_status()
     
-    def _clear_documents(self):
-        """清空文档列表"""
-        if self.document_manager.document_count == 0:
-            return
-        
-        if messagebox.askyesno("确认", "确定要清空所有文档吗？"):
-            self.document_manager.clear_all()
-            self._refresh_document_list()
-            self._update_status()
+    def _on_list_operation_completed(self):
+        """列表操作完成后的回调函数"""
+        self._refresh_document_list()
+        self._update_status()
     
+    # === 打印相关方法 ===
     def _show_print_settings(self):
         """显示打印设置对话框"""
         dialog = PrintSettingsDialog(
@@ -493,194 +448,6 @@ class MainWindow:
             self.config_manager.save_print_settings(self.current_print_settings)
             self._update_status()
             print("打印设置已更新")
-    
-    def _calculate_pages(self):
-        """计算页数"""
-        if self.document_manager.document_count == 0:
-            messagebox.showwarning("提示", "请先添加要统计的文档")
-            return
-        
-        # 显示页数统计对话框
-        show_page_count_dialog(self.root, self.document_manager.documents)
-    
-    def _update_calculate_button_state(self):
-        """更新计算页数按钮状态"""
-        if self.document_manager.document_count == 0:
-            self.btn_calculate_pages.config(state="disabled")
-        else:
-            self.btn_calculate_pages.config(state="normal")
-    
-    def _show_help(self):
-        """显示使用说明"""
-        help_text = """
-            📖 办公文档批量打印器使用说明 V4.1
-
-═══════════════════════════════════════
-
-🎯 软件功能
-• 批量添加和打印Word、PowerPoint、Excel、PDF文档
-• 文件类型过滤器：选择要扫描的文档类型
-• 灵活的打印设置配置
-• 实时打印进度显示
-• 便捷的文档管理
-• 页数统计功能
-
-═══════════════════════════════════════
-
-📋 使用步骤
-
-1️⃣ 添加文档
-   • 点击"添加文件"选择单个或多个文档
-   • 点击"添加文件夹"批量添加整个文件夹中的文档
-   • 🆕 直接拖拽文件或文件夹到程序窗口进行快速添加
-   • 支持递归搜索子文件夹
-   • 使用文件类型过滤器选择要扫描的文档类型（Word、PPT、Excel、PDF）
-   • 默认不扫码excel，表格打印容易排版错位，请先手动调整好排版
-
-
-2️⃣ 管理文档
-   • 选中文档后点击"删除选中"可移除特定文档
-   • 点击"清空列表"可移除所有文档
-   • 双击文档可用默认程序打开预览
-   • 按Delete键可快速删除选中文档
-
-3️⃣ 页数统计
-   • 点击"计算页数"可统计所有文档的页数
-   • 支持PDF、Word、PowerPoint、Excel文档页数计算
-   • 显示详细统计报告和问题文件
-   • 可导出完整报告或错误报告
-
-4️⃣ 配置打印
-   • 点击"打印设置"配置打印参数：
-     - 选择打印机
-     - 设置纸张尺寸（A4、A3、Letter等）
-     - 选择页面方向（纵向/横向）
-     - 设置打印数量（1-999份）
-     - 选择颜色模式（彩色/黑白）
-     - 启用双面打印（如果打印机支持）
-
-5️⃣ 开始打印
-   • 确认文档列表和打印设置
-   • 点击"开始打印"执行批量打印
-   • 观察进度条了解打印状态
-
-═══════════════════════════════════════
-
-📁 支持的文件格式
-• Word文档：.doc、.docx
-• PowerPoint演示文稿：.ppt、.pptx
-• Excel表格：.xls、.xlsx （慎重选择，打印前先手动调整好排版）
-• PDF文件：.pdf
-
-═══════════════════════════════════════
-
-⚠️ 注意事项
-
-🔹 系统要求
-• Windows 10/11 操作系统
-• 已安装Microsoft Office（Word、PowerPoint和Excel打印需要）
-• 至少一台可用的打印机
-
-🔹 使用提示
-• 打印前请确保打印机正常连接
-• 大批量打印时请确保纸张充足
-• 使用文件类型过滤器可控制扫描文件夹时包含的文档类型
-• 打印过程中请勿关闭应用程序
-
-🔹 故障排除
-• 如打印失败，请检查文件是否被其他程序占用
-• 确认打印机驱动程序已正确安装
-• 对于PDF文件，确保系统已安装PDF阅读器
-• 页面统计大文件时间会较长请耐心等待
-• 页面统计遇到加密文件会卡主需手动关闭打开的文档
-
-═══════════════════════════════════════
-
-📚 版本历史
-• v1.0 - 批量打印：实现基础的文档批量打印功能
-• v2.0 - Excel支持：新增Excel文档打印支持
-• v3.0 - 页数统计：添加文档页数统计和报告功能
-• v4.0 - 拖拽支持：支持拖拽文件和文件夹快速导入
-• v4.1 - 修复拖拽BUG：解决文件名含空格的拖拽导入问题
-
-═══════════════════════════════════════
-
-💝 感谢使用办公文档批量打印器！
-开发者：喵言喵语 2025.6.23 by.52pojie
-        """
-        
-        # 创建帮助窗口
-        help_window = tk.Toplevel(self.root)
-        help_window.title("使用说明")
-        help_window.geometry("650x700")
-        help_window.resizable(True, True)
-        help_window.transient(self.root)
-        help_window.grab_set()
-        
-        # 居中显示
-        self._center_window(help_window)
-        
-        # 创建滚动文本框
-        main_frame = ttk.Frame(help_window, padding="10")
-        main_frame.pack(fill="both", expand=True)
-        
-        # 文本显示区域
-        text_frame = ttk.Frame(main_frame)
-        text_frame.pack(fill="both", expand=True)
-        
-        # 创建文本控件和滚动条
-        text_widget = tk.Text(
-            text_frame,
-            wrap=tk.WORD,
-            font=("Microsoft YaHei", 10),
-            bg="white",
-            fg="black",
-            relief="flat",
-            borderwidth=0,
-            state="normal"
-        )
-        
-        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
-        text_widget.configure(yscrollcommand=scrollbar.set)
-        
-        # 布局
-        text_widget.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # 插入帮助文本
-        text_widget.insert("1.0", help_text)
-        text_widget.config(state="disabled")  # 设为只读
-        
-        # 关闭按钮
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill="x", pady=(10, 0))
-        
-        close_btn = ttk.Button(
-            button_frame,
-            text="关闭",
-            command=help_window.destroy,
-            width=10
-        )
-        close_btn.pack(side="right")
-    
-    def _center_window(self, window):
-        """将窗口居中显示"""
-        window.update_idletasks()
-        
-        # 获取主窗口位置和大小
-        main_x = self.root.winfo_rootx()
-        main_y = self.root.winfo_rooty()
-        main_width = self.root.winfo_width()
-        main_height = self.root.winfo_height()
-        
-        # 计算子窗口位置
-        window_width = window.winfo_reqwidth()
-        window_height = window.winfo_reqheight()
-        
-        x = main_x + (main_width - window_width) // 2
-        y = main_y + (main_height - window_height) // 2
-        
-        window.geometry(f"+{x}+{y}")
     
     def _start_printing(self):
         """开始批量打印"""
@@ -733,6 +500,32 @@ class MainWindow:
             self.lbl_print_status.config(text="打印完成")
             self._refresh_document_list()  # 刷新状态显示
     
+    # === 页数统计相关 ===
+    def _calculate_pages(self):
+        """计算页数"""
+        if self.document_manager.document_count == 0:
+            messagebox.showwarning("提示", "请先添加要统计的文档")
+            return
+        
+        # 显示页数统计对话框
+        show_page_count_dialog(self.root, self.document_manager.documents)
+    
+    def _calculate_selected_pages(self):
+        """计算选中文档的页数"""
+        if not self.list_operation_handler:
+            return
+        selected_documents = self.list_operation_handler.get_selected_document_objects()
+        if not selected_documents:
+            messagebox.showwarning("提示", "请先选择要计算页数的文档")
+            return
+        
+        # 调用页数统计功能
+        try:
+            show_page_count_dialog(self.root, selected_documents)
+        except Exception as e:
+            messagebox.showerror("错误", f"页数统计功能出错: {e}")
+    
+    # === 界面更新相关方法 ===
     def _refresh_document_list(self):
         """刷新文档列表显示"""
         # 清空现有项目
@@ -755,6 +548,10 @@ class MainWindow:
                 status_text,
                 str(doc.file_path)
             ))
+        
+        # 保持排序指示器显示
+        if self.list_operation_handler:
+            self.list_operation_handler.maintain_sort_indicators()
     
     def _update_status(self):
         """更新状态显示"""
@@ -769,98 +566,324 @@ class MainWindow:
         self.lbl_printer.config(text=f"打印机: {printer_name}")
         
         # 更新按钮状态
-        self._update_calculate_button_state()
+        if self.document_manager.document_count == 0:
+            self.btn_calculate_pages.config(state="disabled")
+        else:
+            self.btn_calculate_pages.config(state="normal")
+    
+    # === 右键菜单相关 ===
+    def _create_context_menu(self):
+        """创建右键菜单"""
+        self.context_menu = tk.Menu(self.root, tearoff=0)
     
     def _show_context_menu(self, event):
         """显示右键菜单"""
-        # 简化实现：选中项目时显示删除选项
         selection = self.doc_tree.selection()
-        if selection:
-            # 这里可以添加右键菜单
-            pass
+        if not selection:
+            return
+        
+        # 清空现有菜单项
+        self.context_menu.delete(0, "end")
+        
+        # 根据选中项目数量构建菜单
+        selected_count = len(selection)
+        
+        if selected_count == 1:
+            # 单文件菜单
+            self.context_menu.add_command(
+                label="📁  打开所在文件夹",
+                command=lambda: self.list_operation_handler.open_file_location() if self.list_operation_handler else None
+            )
+            self.context_menu.add_command(
+                label="📄  仅打印选中文档",
+                command=self._print_selected_documents
+            )
+            self.context_menu.add_command(
+                label="❌  从列表中移除",
+                command=self._remove_selected_documents
+            )
+            self.context_menu.add_separator()
+            self.context_menu.add_command(
+                label="🔄  重置排序",
+                command=self._reset_sort
+            )
+            self.context_menu.add_separator()
+            self.context_menu.add_command(
+                label="📊  计算选中文档页数",
+                command=self._calculate_selected_pages
+            )
+        else:
+            # 多文件菜单
+            self.context_menu.add_command(
+                label=f"📄  仅打印选中文档 ({selected_count}个文件)",
+                command=self._print_selected_documents
+            )
+            self.context_menu.add_command(
+                label=f"❌  从列表中移除 ({selected_count}个文件)",
+                command=self._remove_selected_documents
+            )
+            self.context_menu.add_separator()
+            self.context_menu.add_command(
+                label="🔄  重置排序",
+                command=self._reset_sort
+            )
+            self.context_menu.add_separator()
+            self.context_menu.add_command(
+                label=f"📊  计算选中文档页数 ({selected_count}个文件)",
+                command=self._calculate_selected_pages
+            )
+            self.context_menu.add_command(
+                label=f"💾  导出选中文档列表 ({selected_count}个文件)",
+                command=lambda: self.list_operation_handler.export_document_list("selected") if self.list_operation_handler else None
+            )
+        
+        # 显示菜单
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
     
+    def _print_selected_documents(self):
+        """仅打印选中的文档"""
+        if not self.list_operation_handler:
+            return
+        selected_documents = self.list_operation_handler.get_selected_document_objects()
+        if not selected_documents:
+            messagebox.showwarning("提示", "请先选择要打印的文档")
+            return
+        
+        if self.print_controller.is_printing:
+            messagebox.showwarning("提示", "打印任务正在进行中")
+            return
+        
+        if not self.current_print_settings.printer_name:
+            messagebox.showerror("错误", "请先设置打印机")
+            return
+        
+        # 确认打印
+        count = len(selected_documents)
+        if not messagebox.askyesno("确认", f"确定要打印选中的 {count} 个文档吗？"):
+            return
+        
+        try:
+            # 添加选中文档到打印队列
+            self.print_controller.clear_queue()
+            self.print_controller.add_documents_to_queue(selected_documents)
+            
+            # 开始打印
+            future = self.print_controller.start_batch_print()
+            
+            # 禁用开始打印按钮
+            self.btn_start_print.config(state="disabled")
+            
+            print(f"已开始打印选中的 {count} 个文档")
+            
+        except Exception as e:
+            messagebox.showerror("错误", f"启动打印失败: {e}")
+    
+    def _reset_sort(self):
+        """重置排序"""
+        if not self.list_operation_handler:
+            return
+        self.list_operation_handler.reset_sort()
+        self._refresh_document_list()
+    
+    # === 事件处理 ===
     def _on_double_click(self, event):
         """双击文档列表项处理"""
-        selection = self.doc_tree.selection()
-        if selection:
-            # 获取选中的文档路径
-            item = selection[0]
-            values = self.doc_tree.item(item, 'values')
-            if values and len(values) > 4:
-                file_path = values[4]  # 文件路径在第5列
-                try:
-                    # 使用系统默认程序打开文件
-                    import os
-                    os.startfile(file_path)
-                except Exception as e:
-                    messagebox.showerror("错误", f"无法打开文件: {e}")
+        # 检查是否点击在列标题区域
+        region = self.doc_tree.identify_region(event.x, event.y)
+        if region == "heading":
+            # 点击在列标题区域，不处理双击事件
+            return
+        
+        # 检查是否有选中的项目
+        item = self.doc_tree.identify_row(event.y)
+        if item and self.list_operation_handler:
+            self.list_operation_handler.open_file_with_default_app()
     
     def _on_delete_key(self, event):
         """删除键处理"""
-        selection = self.doc_tree.selection()
-        if selection:
-            if messagebox.askyesno("确认", f"确定要从列表中移除 {len(selection)} 个文档吗？"):
-                # 获取选中文档的ID并移除
-                for item in selection:
-                    values = self.doc_tree.item(item, 'values')
-                    if values:
-                        file_name = values[0]
-                        # 从文档管理器中找到并移除对应文档
-                        for doc in self.document_manager.documents:
-                            if doc.file_name == file_name:
-                                self.document_manager.remove_document(doc.id)
-                                break
-                
-                # 刷新显示
-                self._refresh_document_list()
-                self._update_status()
+        self._remove_selected_documents()
     
-    def _restore_window_geometry(self):
-        """恢复窗口几何属性"""
-        geometry = self.app_config.window_geometry
-        if geometry:
-            try:
-                self.root.geometry(f"{geometry.get('width', 900)}x{geometry.get('height', 600)}")
-                if 'x' in geometry and 'y' in geometry:
-                    self.root.geometry(f"+{geometry['x']}+{geometry['y']}")
-            except:
-                pass  # 使用默认几何属性
-    
-    def _save_window_geometry(self):
-        """保存窗口几何属性"""
-        try:
-            geometry = self.root.geometry()
-            # 解析几何字符串 "widthxheight+x+y"
-            parts = geometry.replace('+', ' +').replace('-', ' -').split()
-            if len(parts) >= 3:
-                size_part = parts[0]
-                width, height = map(int, size_part.split('x'))
-                x = int(parts[1])
-                y = int(parts[2])
-                
-                self.app_config.window_geometry = {
-                    'width': width,
-                    'height': height,
-                    'x': x,
-                    'y': y
-                }
-                
-                self.config_manager.save_app_config(self.app_config)
-        except:
-            pass  # 忽略保存错误
-    
-    def _on_closing(self):
+    def _on_window_closing(self):
         """窗口关闭事件处理"""
         # 检查是否有打印任务正在进行
         if self.print_controller.is_printing:
             if not messagebox.askyesno("确认", "打印任务正在进行中，确定要退出吗？"):
-                return
+                return False  # 取消关闭
         
         # 保存窗口几何属性
-        self._save_window_geometry()
+        self.window_manager.save_window_geometry(self.app_config)
         
-        # 关闭窗口
-        self.root.destroy()
+        return True  # 允许关闭
+    
+    # === 使用说明 ===
+    def _show_help(self):
+        """显示使用说明"""
+        help_text = """
+📖 办公文档批量打印器使用说明 V5.0
+
+═══════════════════════════════════════
+
+🎯 软件功能
+• 批量添加和打印多种格式文档
+• 方便的过滤各种文档
+• 灵活的打印设置配置
+• 便捷的文档管理
+• 页数统计功能
+
+═══════════════════════════════════════
+
+📂 支持的文件格式
+
+📝 Office文档：
+   • Word文档：.doc, .docx, .wps (WPS文字)
+   • PowerPoint：.ppt, .pptx, .dps (WPS演示)  
+   • Excel表格：.xls, .xlsx, .et (WPS表格)
+   请慎重选择excel格式，使用前先在文件内把打印排版调校好
+
+📄 通用文档：
+   • PDF文件：.pdf
+   • 文本文件：.txt
+
+🖼️ 图片文件：
+   • 常见格式：.jpg, .jpeg, .png, .bmp
+   • 高级格式：.tiff, .tif, .webp
+   • 注意：TIFF可能包含多页，其他按1页计算
+
+═══════════════════════════════════════
+
+📋 使用步骤
+
+1 文件类型过滤
+   • 勾选/取消勾选各种文件类型过滤器
+   • Word、PPT、Excel、PDF、图片、文本独立控制
+   • 实时生效，影响文件添加和文件夹扫描
+   • 鼠标悬停过滤器可查看支持的扩展名
+
+2 添加文档
+   • 点击"添加文件"选择单个或多个文档
+   • 点击"添加文件夹"批量添加整个文件夹中的文档
+   • 🆕 直接拖拽文件或文件夹到程序窗口进行快速添加
+   • 支持递归搜索子文件夹
+
+3 管理文档
+   • 选中文档后点击"删除选中"可移除特定文档
+   • 点击"清空列表"可移除所有文档
+   • 双击文档可用默认程序打开预览
+   • 按Delete键可快速删除选中文档
+   • 支持多选操作（Ctrl+点击）
+
+4 页数统计
+   • 点击"计算页数"统计所有文档的页数
+   • 智能识别文档类型，使用对应处理器
+   • 支持并发统计，提高处理速度
+   • 显示详细统计报告和问题文件
+   • 可导出统计结果到Excel
+
+5 配置打印
+   • 点击"打印设置"配置打印参数
+   • 选择打印机、纸张尺寸、页面方向
+   • 设置打印份数、双面打印、颜色模式
+
+6 开始打印
+   • 确认文档列表和打印设置
+   • 点击"开始打印"执行批量打印
+   • 观察进度条了解打印状态
+   • 支持右键菜单打印选中文档
+
+═══════════════════════════════════════
+
+🚀 v5.0 新特性
+
+🏗️ 架构升级：
+   • 全新的策略模式+注册器模式架构
+   • 模块化文件处理器设计
+   • 更好的代码组织和可维护性
+
+📈 功能增强：
+   • 新增图片文件支持（.jpg, .png, .bmp, .tiff, .webp等）
+   • 新增文本文件支持（.txt）
+   • 新增WPS格式完整支持（.wps, .dps, .et）
+   • 优化拖拽导入功能
+   • 新增界面提示系统
+
+🔧 技术改进：
+   • 优化的并发页数统计
+   • 增强的错误处理和稳定性
+   • 更精确的文件格式识别
+   • 更智能的编码检测（文本文件）
+
+═══════════════════════════════════════
+
+💡 使用提示
+
+• Excel和文本文件页数为估算值，打印前建议预览确认
+• 大文件处理可能需要较长时间，请耐心等待
+• 确保打印机驱动程序正确安装
+• 建议定期检查打印机连接状态
+• 支持的最大文本文件大小：100MB
+
+═══════════════════════════════════════
+
+💝 感谢使用办公文档批量打印器！
+开发者：喵言喵语 by.52pojie
+        """
+        
+        # 创建帮助窗口
+        help_window = tk.Toplevel(self.root)
+        help_window.title("使用说明")
+        help_window.geometry("650x700")
+        help_window.resizable(True, True)
+        help_window.transient(self.root)
+        help_window.grab_set()
+        
+        # 居中显示
+        self.window_manager.center_window(help_window)
+        
+        # 创建滚动文本框
+        main_frame = ttk.Frame(help_window, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        
+        # 文本显示区域
+        text_frame = ttk.Frame(main_frame)
+        text_frame.pack(fill="both", expand=True)
+        
+        # 创建文本控件和滚动条
+        text_widget = tk.Text(
+            text_frame,
+            wrap=tk.WORD,
+            font=("Microsoft YaHei", 10),
+            bg="white",
+            fg="black",
+            relief="flat",
+            borderwidth=0,
+            state="normal"
+        )
+        
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+        
+        # 布局
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # 插入帮助文本
+        text_widget.insert("1.0", help_text)
+        text_widget.config(state="disabled")  # 设为只读
+        
+        # 关闭按钮
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill="x", pady=(10, 0))
+        
+        close_btn = ttk.Button(
+            button_frame,
+            text="关闭",
+            command=help_window.destroy,
+            width=10
+        )
+        close_btn.pack(side="right")
     
     def run(self):
         """运行主循环"""

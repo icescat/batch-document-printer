@@ -1,9 +1,12 @@
 """
 办公文档批量打印器 - 主程序入口
 支持批量打印Word、PowerPoint、PDF文档的桌面应用程序
+
+注意: 程序启动时可能会出现libpng警告信息，这些警告来自Windows系统TTK主题中的PNG图标，
+     包含不正确的sRGB颜色配置文件。这些警告不影响程序的正常功能，可以安全忽略。
 """
-import sys
 import os
+import sys
 from pathlib import Path
 
 # 添加源代码路径到系统路径
@@ -17,7 +20,7 @@ try:
     def main():
         """主函数"""
         print("=" * 50)
-        print("        办公文档批量打印器 v4.0")
+        print("        办公文档批量打印器 v5.0")
         print("  支持 Word、PowerPoint、Excel、PDF 文档")
         print("=" * 50)
         

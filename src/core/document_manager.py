@@ -4,7 +4,7 @@
 """
 import os
 from pathlib import Path
-from typing import List, Optional, Set, Dict
+from typing import List, Optional, Set, Dict, Callable
 from .models import Document, FileType, PrintStatus
 
 
@@ -13,16 +13,20 @@ class DocumentManager:
     
     # 支持的文件扩展名
     SUPPORTED_EXTENSIONS = {
-        '.doc', '.docx',    # Word文档
-        '.ppt', '.pptx',    # PowerPoint
-        '.xls', '.xlsx',    # Excel表格
-        '.pdf'              # PDF文件
+        '.doc', '.docx', '.wps',    # Word文档（包含WPS文字）
+        '.ppt', '.pptx', '.dps',    # PowerPoint（包含WPS演示）
+        '.xls', '.xlsx', '.et',     # Excel表格（包含WPS表格）
+        '.pdf',                     # PDF文件
+        '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp',  # 图片文件（已移除.gif, .ico和.pcx）
+        '.txt'                      # 文本文件
     }
     
     def __init__(self):
         """初始化文档管理器"""
         self._documents: List[Document] = []
         self._document_paths: Set[str] = set()  # 用于快速查重
+        self._current_sort_key: Optional[str] = None  # 当前排序键
+        self._current_sort_reverse: bool = False  # 当前排序方向
     
     @property
     def documents(self) -> List[Document]:
@@ -33,6 +37,11 @@ class DocumentManager:
     def document_count(self) -> int:
         """获取文档总数"""
         return len(self._documents)
+    
+    @property
+    def current_sort_info(self) -> tuple:
+        """获取当前排序信息 (sort_key, reverse)"""
+        return (self._current_sort_key, self._current_sort_reverse)
     
     def add_file(self, file_path: Path) -> Optional[Document]:
         """
@@ -61,6 +70,10 @@ class DocumentManager:
             # 添加到列表
             self._documents.append(document)
             self._document_paths.add(file_path_str)
+            
+            # 如果当前有排序，重新应用排序
+            if self._current_sort_key:
+                self._apply_current_sort()
             
             print(f"成功添加文档: {document.file_name}")
             return document
@@ -106,18 +119,22 @@ class DocumentManager:
         
         # 如果没有提供文件类型过滤器，默认启用所有类型
         if enabled_file_types is None:
-            enabled_file_types = {'word': True, 'ppt': True, 'excel': True, 'pdf': True}
+            enabled_file_types = {'word': True, 'ppt': True, 'excel': True, 'pdf': True, 'image': True, 'text': True}
         
         # 根据启用的文件类型构建允许的扩展名集合
         allowed_extensions = set()
         if enabled_file_types.get('word', False):
-            allowed_extensions.update(['.doc', '.docx'])
+            allowed_extensions.update(['.doc', '.docx', '.wps'])
         if enabled_file_types.get('ppt', False):
-            allowed_extensions.update(['.ppt', '.pptx'])
+            allowed_extensions.update(['.ppt', '.pptx', '.dps'])
         if enabled_file_types.get('excel', False):
-            allowed_extensions.update(['.xls', '.xlsx'])
+            allowed_extensions.update(['.xls', '.xlsx', '.et'])
         if enabled_file_types.get('pdf', False):
             allowed_extensions.add('.pdf')
+        if enabled_file_types.get('image', False):
+            allowed_extensions.update(['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp'])
+        if enabled_file_types.get('text', False):
+            allowed_extensions.add('.txt')
         
         # 获取文件列表
         pattern = "**/*" if recursive else "*"
@@ -161,6 +178,8 @@ class DocumentManager:
         count = len(self._documents)
         self._documents.clear()
         self._document_paths.clear()
+        self._current_sort_key = None
+        self._current_sort_reverse = False
         print(f"已清空所有文档 ({count} 个)")
     
     def get_document_by_id(self, document_id: str) -> Optional[Document]:
@@ -220,6 +239,69 @@ class DocumentManager:
             print(f"文档 {doc.file_name} 状态更新: {old_status.value} -> {status.value}")
             return True
         return False
+    
+    def sort_documents(self, sort_key: str, reverse: bool = False) -> None:
+        """
+        对文档列表进行排序
+        
+        Args:
+            sort_key: 排序键 ('name', 'type', 'size', 'status', 'path', 'added_time')
+            reverse: 是否倒序排列
+        """
+        if not self._documents:
+            return
+        
+        # 定义排序键函数
+        sort_functions = {
+            'name': lambda doc: doc.file_name.lower(),  # 文件名不区分大小写排序
+            'type': lambda doc: (doc.file_type.value, doc.file_name.lower()),  # 先按类型，再按文件名
+            'size': lambda doc: (doc.file_size, doc.file_name.lower()),  # 先按大小，再按文件名
+            'status': lambda doc: (doc.print_status.value, doc.file_name.lower()),  # 先按状态，再按文件名
+            'path': lambda doc: str(doc.file_path).lower(),  # 路径不区分大小写排序
+            'added_time': lambda doc: (doc.added_time, doc.file_name.lower())  # 先按添加时间，再按文件名
+        }
+        
+        if sort_key not in sort_functions:
+            print(f"不支持的排序键: {sort_key}")
+            return
+        
+        try:
+            # 执行排序
+            self._documents.sort(key=sort_functions[sort_key], reverse=reverse)
+            
+            # 保存当前排序状态
+            self._current_sort_key = sort_key
+            self._current_sort_reverse = reverse
+            
+            print(f"文档已按 {sort_key} {'降序' if reverse else '升序'} 排列")
+            
+        except Exception as e:
+            print(f"排序失败: {e}")
+    
+    def toggle_sort(self, sort_key: str) -> bool:
+        """
+        切换排序状态：如果当前是该字段升序，则改为降序；否则设为升序
+        
+        Args:
+            sort_key: 排序键
+            
+        Returns:
+            返回当前是否为降序
+        """
+        if self._current_sort_key == sort_key:
+            # 如果是同一个字段，切换排序方向
+            reverse = not self._current_sort_reverse
+        else:
+            # 如果是不同字段，默认从升序开始
+            reverse = False
+        
+        self.sort_documents(sort_key, reverse)
+        return reverse
+    
+    def _apply_current_sort(self):
+        """应用当前的排序设置"""
+        if self._current_sort_key:
+            self.sort_documents(self._current_sort_key, self._current_sort_reverse)
     
     def get_summary(self) -> dict:
         """

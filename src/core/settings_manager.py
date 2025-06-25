@@ -4,7 +4,6 @@
 """
 import win32print
 import win32api
-import win32gui
 from typing import List, Dict, Optional
 from .models import PrintSettings, ColorMode, Orientation
 
@@ -143,9 +142,9 @@ class PrinterSettingsManager:
             printer_name=printer_name,
             paper_size="A4",
             copies=1,
-            duplex=False,
-            color_mode=ColorMode.COLOR,
-            orientation=Orientation.PORTRAIT
+            duplex=True,  # 启用双面打印
+            color_mode=ColorMode.GRAYSCALE,  # 黑白打印
+            orientation=Orientation.PORTRAIT  # 竖向（纵向）
         )
     
     def validate_settings(self, settings: PrintSettings) -> tuple[bool, List[str]]:
@@ -190,17 +189,13 @@ class PrinterSettingsManager:
             if not self.validate_printer(printer_name):
                 return {}
             
-            # 获取设备能力
-            hdc = win32gui.CreateDC("WINSPOOL", printer_name, None)
-            
+            # 返回默认打印机能力（避免复杂的Windows API调用）
             capabilities = {
-                'supports_color': win32gui.GetDeviceCaps(hdc, 12) > 1,  # 12 是 BITSPIXEL 常量
-                'supports_duplex': True,  # 大部分现代打印机都支持
+                'supports_color': True,  # 假设支持彩色打印
+                'supports_duplex': True,  # 假设支持双面打印
                 'paper_sizes': self.paper_sizes,
                 'max_copies': 999
             }
-            
-            win32gui.DeleteDC(hdc)
             return capabilities
             
         except Exception as e:

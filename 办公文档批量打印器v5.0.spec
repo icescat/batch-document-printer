@@ -28,7 +28,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='办公文档批量打印器v4.0',
+    name='办公文档批量打印器v5.0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

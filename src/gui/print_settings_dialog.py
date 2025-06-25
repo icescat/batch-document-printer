@@ -287,7 +287,8 @@ class PrintSettingsDialog:
         
         try:
             if self.printer_manager.test_printer_connection(printer_name):
-                messagebox.showinfo("成功", f"打印机 '{printer_name}' 连接正常")
+                # 去掉连接成功提示窗口
+                print(f"打印机 '{printer_name}' 连接正常")
             else:
                 messagebox.showerror("错误", f"无法连接到打印机 '{printer_name}'")
         except Exception as e:

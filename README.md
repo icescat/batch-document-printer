@@ -1,242 +1,581 @@
 # 办公文档批量打印器
 
-> 🚀 **最新版本**: v4.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
+> 🚀 **最新版本**: v5.0.0 | 📥 **[立即下载](https://github.com/icescat/batch-document-printer/releases/latest)** | 🌟 **[GitHub 仓库](https://github.com/icescat/batch-document-printer)**
 
 ## 项目概括
-本项目基于Python 3.12，用于批量打印Word文档、PowerPoint演示文稿、Excel表格和PDF文件。提供图形用户界面，支持灵活的文档添加方式（包括拖拽导入）、文件类型过滤、文档页数统计、便捷打印设置以及一键批量打印功能，能显著提升办公文档打印效率。
 
-## 技术选型
+本项目基于Python 3.12，采用**策略模式+注册器模式的模块化处理器架构**，支持批量打印多种文档格式：Word、PowerPoint、Excel、PDF、图片和文本文件。提供直观的图形用户界面，支持拖拽导入、智能文件类型过滤、精确页数统计、WPS格式兼容、灵活打印设置等功能，能显著提升办公文档打印效率。
+
+## 🏗️ 架构设计
+
+### 核心架构 - 模块化处理器模式
+
+### 🔧 技术选型
+
 - **主要编程语言**: Python 3.12+
 - **GUI框架**: tkinter, tkinterdnd2 (拖拽支持)
-- **文档处理库**: 
+- **架构模式**: 策略模式 + 注册器模式 + 插件化架构
+- **文档处理库**:
   - python-docx (Word文档处理)
   - python-pptx (PowerPoint处理)
-  - openpyxl (Excel处理，通过COM接口)
+  - xlwings (Excel处理，精确页数统计)
   - PyPDF2/pypdf (PDF处理)
   - comtypes/pywin32 (Windows COM接口，用于调用Office应用)
 - **打印控制**: win32print, win32api (Windows打印API)
 - **应用打包**: PyInstaller (生成独立exe文件)
 - **文件操作**: pathlib, os (文件系统操作)
 - **版本控制**: Git
-- **其他工具**: 
+- **其他工具**:
   - pytest (单元测试)
   - black (代码格式化)
   - cx_Freeze 或 auto-py-to-exe (备选打包方案)
 
-## 项目结构 / 模块划分
-- `/src/`: 核心源代码目录
-  - `/gui/`: 图形用户界面模块
-    - `main_window.py`: 主窗口界面
-    - `print_settings_dialog.py`: 打印设置对话框
-    - `page_count_dialog.py`: 页数统计对话框
-  - `/core/`: 核心业务逻辑模块
-    - `document_manager.py`: 文档管理器
-    - `print_controller.py`: 打印控制器
-    - `settings_manager.py`: 设置管理器
-    - `page_count_manager.py`: 页数统计管理器
-    - `models.py`: 数据模型定义
-  - `/utils/`: 工具类和辅助函数
-    - `config_utils.py`: 配置文件操作
-- `/data/`: 应用数据存储目录
-  - `config.json`: 应用配置文件
-  - `print_settings.json`: 打印设置配置
-- `/resources/`: 资源文件目录
-  - `app_icon.ico`: 应用程序图标
-- `/tests/`: 测试代码目录
-- `main.py`: 程序入口点
-- `requirements.txt`: Python依赖管理
-- `.gitignore`: Git忽略配置
+## 📁 项目结构 / 模块划分
 
-## 核心功能 / 模块详解
-- **文档添加管理** (`document_manager.py`): 支持多种添加方式（按钮选择、拖拽导入）、单个文件和文件夹批量添加、文件格式过滤验证（.docx, .doc, .pptx, .ppt, .xlsx, .xls, .pdf）、文档列表管理与预览。
-- **文件类型过滤器**: 界面顶部提供Word、PPT、Excel、PDF四个勾选框，控制扫描文件夹时包含的文档类型，默认启用Word、PPT、PDF。
-- **页数统计功能** (`page_count_manager.py`): 智能识别并统计Word、PowerPoint、Excel、PDF文档的页数/张数，支持批量统计、实时显示总页数、按文件类型分类统计，为打印成本评估提供重要参考。
-- **打印设置配置** (`settings_manager.py`): 检测和选择可用打印机、纸张尺寸设置（A4、A3、Letter等）、打印数量控制、双面打印选项、彩色/黑白模式选择。
-- **批量打印控制** (`print_controller.py`): 调用Windows系统打印API、支持Word/PPT/Excel(COM接口)和PDF(系统默认程序)的打印调度、打印队列管理、打印进度显示、错误处理和重试机制。
-- **图形用户界面** (`main_window.py`): 直观的主界面设计、文档列表展示、拖拽导入支持、实时状态更新、打印进度条显示、页数统计结果展示。
-- **应用配置管理** (`config_utils.py`): 用户偏好设置持久化、最近使用的打印设置、应用程序状态保存与恢复。
+### v5.0 完整架构目录结构
 
-## 数据模型
-- **Document**: { id (UUID), file_path (Path), file_name (str), file_type (enum: WORD|PPT|EXCEL|PDF), file_size (int), page_count (int), added_time (datetime), print_status (enum: PENDING|PRINTING|COMPLETED|ERROR) }
-- **PrintSettings**: { printer_name (str), paper_size (str), copies (int), duplex (bool), color_mode (enum: COLOR|GRAYSCALE), page_range (str), orientation (enum: PORTRAIT|LANDSCAPE) }
-- **AppConfig**: { last_printer (str), default_settings (PrintSettings), window_geometry (dict), recent_folders (List[str]), enabled_file_types (dict) }
-- **PageCountResult**: { total_pages (int), word_pages (int), ppt_slides (int), excel_sheets (int), pdf_pages (int), error_files (List[str]) }
-
-## 技术实现细节
-
-### 核心架构设计
-- **数据模型层**: 使用dataclass定义Document、PrintSettings、AppConfig等核心数据结构
-- **业务逻辑层**: DocumentManager处理文档管理，PrinterSettingsManager管理打印设置，PrintController执行打印任务，PageCountManager处理页数统计
-- **界面交互层**: 基于tkinter的MainWindow主界面、PrintSettingsDialog设置对话框和PageCountDialog页数统计对话框
-- **配置管理**: 通过ConfigManager实现JSON格式的配置持久化
-
-### 文档管理器实现 (#document_manager)
-- 支持.doc/.docx/.ppt/.pptx/.xls/.xlsx/.pdf格式的文件验证和添加
-- 实现文件去重机制，防止重复添加相同文档
-- 提供批量文件夹扫描功能，支持递归搜索
-- 文件类型过滤：根据用户选择的文件类型过滤器扫描指定类型的文档
-- 文档状态管理：PENDING → PRINTING → COMPLETED/ERROR
-
-### 页数统计管理器实现 (#page_count_manager)
-- **Word文档统计**: 通过python-docx库读取.docx文件的段落和分页符，计算实际页数
-- **PowerPoint统计**: 使用python-pptx库获取演示文稿的幻灯片数量
-- **Excel文档统计**: 通过COM接口调用Excel应用程序，统计工作簿中所有工作表的页数
-- **PDF文档统计**: 使用PyPDF2/pypdf库读取PDF文件的页面数量
-- **批量统计**: 支持多线程并发处理，提高大批量文档的统计效率
-- **错误处理**: 对损坏或受保护的文档进行异常处理，记录错误信息
-- **实时反馈**: 统计过程中提供进度条和状态更新
-
-### 打印设置管理 (#settings_manager)
-- 通过win32print API检测系统可用打印机
-- 支持A4/A3/Letter等标准纸张尺寸设置
-- 彩色/黑白模式选择，双面打印控制
-- 打印机连接测试和状态验证
-
-### 批量打印控制器 (#print_controller)
-- 多线程打印执行，避免界面阻塞
-- 支持PDF(通过系统关联)、Word(COM接口)、PowerPoint(COM接口)、Excel(COM接口)四种打印方式
-- Excel打印支持：通过COM接口调用Excel应用程序，支持工作簿的所有工作表打印
-- 实时进度回调和状态更新
-- 错误处理和重试机制
-
-### 配置持久化 (#config_utils)
-- JSON格式配置文件存储在data目录
-- 支持应用设置和打印设置的分离存储
-- 配置备份和恢复功能
-- 窗口几何属性保存
-- 文件类型过滤器设置持久化
-
-### 文件类型过滤器实现 (#file_type_filter)
-- 界面顶部四个勾选框：Word、PPT、Excel、PDF
-- 默认配置：Word(✓)、PPT(✓)、Excel(✗)、PDF(✓)
-- 实时保存用户选择到配置文件
-- 扫描文件夹时根据过滤器设置筛选文档类型
-
-### 页数统计对话框实现 (#page_count_dialog)
-- 独立的页数统计窗口，显示详细的统计结果
-- 按文件类型分类显示：Word页数、PPT幻灯片数、Excel工作表数、PDF页数
-- 总页数汇总和打印成本估算参考
-- 统计进度条和状态显示
-- 支持统计结果导出和保存
-
-### 拖拽导入功能实现 (#drag_drop_import)
-- **拖拽库集成**: 使用tkinterdnd2库提供跨平台拖拽支持
-- **多目标支持**: 支持拖拽到文档列表区域或主窗口
-- **智能识别**: 自动区分拖拽的文件和文件夹
-- **批量处理**: 支持同时拖拽多个文件和文件夹
-- **类型过滤**: 遵循用户设置的文件类型过滤器
-- **错误处理**: 完善的异常处理和用户反馈机制
-- **递归搜索**: 拖拽文件夹时自动递归搜索子目录
-
-## 代码检查与问题记录
-
-### 已修复问题
-| 问题描述 | 发现时间 | 解决方案 | 修复状态 |
-|----------|----------|----------|----------|
-| 拖拽导入文件名含空格失败 | 2024-12-19 | 修改_on_drop_files方法，正确解析包含空格的文件路径 | ✅已修复 |
-
-**问题详情**:
-- **问题现象**: 拖拽导入的文件或文件夹名称如果含有空格会导入失败，提示"未找到支持的文档格式或文件已存在"
-- **根本原因**: 原代码使用`event.data.split()`简单分割文件路径，导致包含空格的路径被错误分割成多个部分
-- **解决方案**: 改进路径解析逻辑，支持换行符、null字符分隔的多文件路径，正确处理包含空格的文件名和文件夹名
-- **影响范围**: 所有包含空格的文件路径（文件名、文件夹名、完整路径中的任何部分）
-- **测试建议**: 测试拖拽含空格的文件名、文件夹名，以及同时拖拽多个文件的场景
-
-## 开发状态跟踪
-| 模块/功能        | 状态     | 备注与链接 |
-|------------------|----------|----------|
-| 项目架构搭建     | ✅已完成  | [技术实现](#core-architecture) |
-| 文档管理器       | ✅已完成  | [文档管理](#document_manager) |
-| 打印设置管理     | ✅已完成  | [设置管理](#settings_manager) |
-| 主界面设计       | ✅已完成  | [主界面](#main_window) |
-| 打印控制器       | ✅已完成  | [打印控制](#print_controller) |
-| 工具函数模块     | ✅已完成  | [配置管理](#config_utils) |
-| 应用配置管理     | ✅已完成  | [配置持久化](#config_utils) |
-| GitHub发布部署   | ✅已完成  | [v1.0.0 Release](https://github.com/icescat/batch-document-printer/releases) |
-| Excel文档支持    | ✅已完成  | [Excel打印](#print_controller) |
-| 文件类型过滤器   | ✅已完成  | [过滤器实现](#file_type_filter) |
-| v2.0版本发布     | ✅已完成  | v2.0功能开发完成 |
-| 项目结构清理     | ✅已完成  | 删除冗余文件，优化项目结构 |
-| 页数统计功能     | ✅已完成  | [页数统计](#page_count_manager) |
-| 页数统计对话框   | ✅已完成  | [统计界面](#page_count_dialog) |
-| v3.0版本发布     | ✅已完成  | 页数统计功能实现 |
-| 拖拽导入功能     | ✅已完成  | [拖拽导入](#drag_drop_import) |
-| v4.0版本发布     | ✅已完成  | 拖拽导入功能实现 |
-| 拖拽导入Bug修复  | ✅已完成  | 修复文件名含空格的拖拽导入问题 |
-| v4.1版本发布     | ✅已完成  | Bug修复版本 |
-
-## 环境设置与运行指南
-### 开发环境要求
-- Python 3.12+
-- Windows 10/11 操作系统
-- Microsoft Office (用于Word和PPT文档处理)
-- 至少一台可用的打印机
-
-### 依赖安装
-```bash
-pip install -r requirements.txt
+```text
+printer/
+├── src/
+│   ├── handlers/                    # 🆕 文档处理器模块 (核心架构)
+│   │   ├── __init__.py              # 处理器导出
+│   │   ├── base_handler.py          # 基础处理器接口
+│   │   ├── handler_registry.py      # 处理器注册中心
+│   │   ├── pdf_handler.py           # PDF文档处理器
+│   │   ├── word_handler.py          # Word文档处理器
+│   │   ├── powerpoint_handler.py    # PowerPoint文档处理器
+│   │   ├── excel_handler.py         # Excel文档处理器
+│   │   ├── image_handler.py         # 图片文档处理器
+│   │   ├── text_handler.py          # 文本文档处理器
+│   │   └── print_utils.py           # 打印工具类
+│   ├── gui/                         # 图形用户界面模块
+│   │   ├── components/              # GUI功能组件
+│   │   │   ├── __init__.py          # 组件导出
+│   │   │   ├── file_import_handler.py    # 文件导入功能处理器
+│   │   │   ├── list_operation_handler.py # 列表操作功能处理器
+│   │   │   ├── window_manager.py         # 窗口管理器
+│   │   │   └── tooltip.py                # 浮窗提示组件
+│   │   ├── main_window.py           # 主窗口界面 (纯界面层)
+│   │   ├── print_settings_dialog.py # 打印设置对话框
+│   │   └── page_count_dialog.py     # 页数统计对话框
+│   ├── core/                        # 核心业务逻辑模块 (重构)
+│   │   ├── document_manager.py      # 文档管理器
+│   │   ├── print_controller.py      # 基于处理器架构
+│   │   ├── page_count_manager.py    # 基于处理器架构
+│   │   ├── settings_manager.py      # 设置管理器
+│   │   ├── printer_config_manager.py # 打印机配置管理器
+│   │   └── models.py                # 数据模型定义
+│   └── utils/                       # 工具类和辅助函数
+│       └── config_utils.py          # 配置文件操作
+├── data/                            # 应用数据存储目录
+├── resources/                       # 资源文件目录
+│   └── app_icon.ico                 # 应用程序图标
+├── main.py                         # 程序入口点
+├── requirements.txt                # Python依赖管理
+├── build_v5.0.bat                  # v5.0构建脚本
+├── 办公文档批量打印器v5.0.spec      # PyInstaller打包配置
+└── README.md                       # 项目文档
 ```
 
-### 开发运行
-```bash
-# 直接运行主程序
-python main.py
+### 架构分层说明
 
-# 或者在src目录下运行
-cd src
-python -m gui.main_window
+```text
+📋 v5.0 完整分层架构
+┌─────────────────────────────────────────────────────────┐
+│                    应用入口层                            │
+│  main.py - 程序启动入口和系统初始化                     │
+├─────────────────────────────────────────────────────────┤
+│                    GUI界面层                            │
+│  主界面   │  设置对话框  │  页数统计对话框  │  帮助界面    │
+├─────────────────────────────────────────────────────────┤
+│                 GUI功能处理器层 🆕                       │
+│ FileImportHandler │ ListOperationHandler │ WindowManager │
+├─────────────────────────────────────────────────────────┤
+│                   核心业务逻辑层                         │
+│ DocumentManager │ PrintController │ SettingsManager     │
+├─────────────────────────────────────────────────────────┤
+│                 文档处理器层 🆕                          │
+│ WordHandler │ PDFHandler │ PPTHandler │ ExcelHandler │ ImageHandler │ TextHandler │
+├─────────────────────────────────────────────────────────┤
+│                   基础工具层                            │
+│  ConfigUtils  │  HandlerRegistry  │  Models  │  Types  │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 应用构建
-```bash
-# 使用构建脚本（推荐）
-./build_v4.1.bat
+## 🚀 核心功能 / 模块详解
 
-# 手动构建
-pyinstaller --clean "办公文档批量打印器v4.1.spec"
+### 🔧 文档处理器架构 (v5.0 新特性)
 
-# 清理构建文件
-Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
+#### 基础处理器接口 (`base_handler.py`)
+
+定义所有文档处理器必须实现的统一接口：
+
+```python
+class BaseDocumentHandler(ABC):
+    @abstractmethod
+    def get_supported_file_types(self) -> Set[FileType]
+    def get_supported_extensions(self) -> Set[str]
+    def can_handle_file(self, file_path: Path) -> bool
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool
+    def count_pages(self, file_path: Path) -> int
 ```
 
-#### 图标配置
-- **应用图标位置**: `resources/app_icon.ico`
-- **图标格式**: ICO格式，支持多尺寸
-- **推荐尺寸**: 16x16, 32x32, 48x48, 64x64, 128x128, 256x256像素
-- **如果没有图标**: 将使用PyInstaller默认图标
+#### 处理器注册中心 (`handler_registry.py`)
 
-#### 构建输出
-- **可执行文件**: `dist/办公文档批量打印器v4.1.exe`
-- **文件大小**: 约30-60MB（包含所有依赖）
-- **注意**: 构建后的临时文件已配置在.gitignore中，不会提交到版本控制
+负责管理和分发各种文档格式的处理器：
 
+- 动态处理器注册和发现
+- 基于文件类型和扩展名的智能路由
+- 支持运行时添加新的处理器
+- 统一的错误处理和日志记录
 
-## 下载与安装
+#### 具体文档处理器
 
-### 📥 直接下载（推荐）
-**[点击这里下载最新版本](https://github.com/icescat/batch-document-printer/releases/latest)**
+| 处理器 | 支持格式 | 功能 |
+|--------|----------|------|
+| **PDFDocumentHandler** | `.pdf` | PDF打印 + 页数统计 |
+| **WordDocumentHandler** | `.doc`, `.docx`, `.wps` | Word打印 + 页数统计，支持WPS文字 |
+| **PowerPointDocumentHandler** | `.ppt`, `.pptx`, `.dps` | PPT打印 + 幻灯片统计，支持WPS演示 |
+| **ExcelDocumentHandler** | `.xls`, `.xlsx`, `.et` | Excel打印 + 工作表统计，支持WPS表格 |
+| **ImageDocumentHandler** | `.jpg`, `.png`, `.bmp`, `.tiff`, `.webp` | 图片打印 + 页数统计（TIFF多页支持） |
+| **TextDocumentHandler** | `.txt` | 文本打印 + 页数估算，智能编码检测 |
 
-1. 在 Release 页面下载 `办公文档批量打印器.exe`
-2. 双击运行即可使用，无需安装
-3. 首次启动可能需要10-30秒初始化时间
+### 🎨 GUI功能处理器架构 (v5.0 新特性)
 
-### 💻 系统要求
+#### 功能处理器详解
+
+#### 1. FileImportHandler (文件导入处理器)
+
+- **拖拽导入**: 支持多种格式的拖拽数据解析
+- **文件选择**: 文件/文件夹选择对话框
+- **格式过滤**: 根据用户设置过滤文件类型
+- **路径解析**: 智能处理复杂文件路径
+
+#### 2. ListOperationHandler (列表操作处理器)
+
+- **智能排序**: 列表头点击排序，支持多字段排序
+- **文件操作**: 删除、清空、打开文件位置
+- **右键菜单**: 上下文相关的操作菜单
+- **列表导出**: CSV/文本格式的文档列表导出
+
+#### 3. WindowManager (窗口管理器)
+
+- **几何状态**: 窗口位置和大小的保存/恢复
+- **用户偏好**: 文件类型过滤器等设置持久化
+- **窗口行为**: 居中显示、最小尺寸、关闭处理
+- **配置管理**: 与ConfigManager的集成
+
+### 4. 重构后的打印控制器 (`print_controller.py`)
+
+- **基于处理器架构**: 不再包含具体的格式处理逻辑
+- **智能路由**: 根据文件类型自动选择合适的处理器
+- **统一接口**: 所有文档类型使用相同的打印接口
+- **增强错误处理**: 处理器级别的错误隔离
+- **并行优化**: 支持多个处理器并行工作
+
+### 5. 重构后的页数统计管理器 (`page_count_manager.py`)
+
+- **模块化统计**: 每种格式由专门的处理器负责
+- **并行计算**: 多线程并发处理大批量文档
+- **统一结果格式**: 所有处理器返回标准化的统计结果
+- **缓存机制**: 避免重复计算相同文档的页数
+- **进度追踪**: 大批量统计时提供实时进度更新
+
+### 6. 核心业务模块
+
+- **文档管理器** (`document_manager.py`): 支持多种添加方式、文件格式过滤验证、文档列表管理与预览
+- **设置管理器** (`settings_manager.py`): 打印机选择、纸张设置、打印参数配置、用户偏好持久化
+- **配置工具** (`config_utils.py`): 应用程序配置文件操作、用户偏好设置、窗口状态保存
+
+## 🔄 架构演进历程
+
+### v5.0新特性亮点总结
+
+#### 1. **完全模块化的文档处理器架构**
+
+- 支持6种文档格式：PDF、Word、PowerPoint、Excel、图片、文本文件
+- 统一的BaseDocumentHandler接口，确保所有处理器的一致性
+- 智能注册中心HandlerRegistry，支持运行时动态加载处理器
+- **WPS兼容性**：完整支持.wps、.dps、.et格式
+
+#### 2. **GUI架构的彻底重构**
+
+- 实现了界面与业务逻辑的完全分离
+
+#### 3. **增强的扩展性**
+
+- 添加新文档格式只需实现新的处理器类，无需修改现有代码
+- 插件式架构支持第三方扩展
+- 配置驱动的功能开关
+
+#### 4. **更好的错误处理和性能**
+
+- 处理器级别的错误隔离，单个格式的问题不影响其他格式
+- 并行处理能力，支持多文档同时处理
+- 详细的错误信息和建议
+
+#### 5. **新增文件格式支持** 🆕
+
+- **图片文件支持**：.jpg, .jpeg, .png, .bmp, .tiff, .tif, .webp
+- **文本文件支持**：.txt，智能编码检测（UTF-8, GBK, GB2312等）
+- **WPS格式支持**：.wps, .dps, .et，通过复用Office处理器实现
+
+#### 6. **用户体验优化**
+
+- 智能的文件类型识别和过滤
+- 流畅的拖拽导入体验
+- 详细的处理进度显示
+- **提示系统**：仅在文件类型过滤器显示tooltip提示
+
+#### 7. **错误隔离**
+
+- 单个处理器的错误不会影响其他处理器
+- 更好的错误定位和调试能力
+- 提供详细的错误信息和建议
+
+#### 8. **GUI模块化重构优势** 🆕
+
+- **职责分离**: 界面与功能逻辑彻底分离
+- **代码可读性**: 从1357行巨大文件拆分为4个清晰模块
+- **维护便利**: 修改功能无需接触界面代码
+- **测试友好**: 功能处理器可独立进行单元测试
+- **复用性强**: 功能处理器可在其他界面中复用
+
+## 🛠️ 安装与使用
+
+### 环境要求
+
 - **操作系统**: Windows 10/11 (64位)
-- **必需软件**: Microsoft Office (用于Word、PowerPoint和Excel文档)
-- **可选软件**: PDF阅读器 (用于PDF文档打印)
-- **硬件要求**: 至少一台可用的打印机
+- **Python版本**: Python 3.8+ (推荐3.12+)
+- **Office软件**: Microsoft Office 2016+ (用于.docx/.pptx/.xlsx文件处理)
+- **系统权限**: 需要打印机访问权限
 
-### 🔧 从源码运行
-如果您是开发者或想要自定义功能：
+### 快速安装
+
+#### 方式一: 直接下载可执行文件 (推荐)
+
 ```bash
+# 1. 下载最新版本
+https://github.com/icescat/batch-document-printer/releases/latest
+
+# 2. 解压并运行
+办公文档批量打印器v5.0.exe
+```
+
+#### 方式二: 从源码安装
+
+```bash
+# 1. 克隆仓库
 git clone https://github.com/icescat/batch-document-printer.git
 cd batch-document-printer
+
+# 2. 创建虚拟环境
+python -m venv .venv
+.venv\Scripts\activate
+
+# 3. 安装依赖
 pip install -r requirements.txt
+
+# 4. 运行程序
 python main.py
 ```
 
-## 部署与发布
-- **发布渠道**: GitHub Releases
-- **更新方式**: 手动下载新版本覆盖
-- **版本管理**: 语义化版本控制 (Semantic Versioning)
-- **发布频率**: 根据功能更新和Bug修复情况 
+#### 方式三: 使用pip安装
+
+```bash
+pip install batch-document-printer
+batch-printer
+```
+
+## 📊 技术实现细节
+
+### 文档处理器实现原理
+
+#### PDF处理器 (`pdf_handler.py`)
+
+```python
+class PDFDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """使用PyPDF2库解析PDF页数"""
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """通过Adobe Reader或Windows默认程序打印"""
+```
+
+#### Word处理器 (`word_handler.py`)
+
+```python
+class WordDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """通过python-docx或COM接口获取页数"""
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """使用Microsoft Word COM接口执行打印"""
+```
+
+#### PowerPoint处理器 (`powerpoint_handler.py`)
+
+```python
+class PowerPointDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """通过python-pptx或COM接口获取幻灯片数"""
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """使用Microsoft PowerPoint COM接口执行打印"""
+```
+
+#### Excel处理器 (`excel_handler.py`)
+
+```python
+class ExcelDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """
+        使用xlwings获取Excel精确打印页数:
+        1. 通过Excel原生API访问HPageBreaks和VPageBreaks
+        2. 计算实际打印页数: (水平分页符+1) × (垂直分页符+1)
+        3. 遍历所有工作表累加总页数
+        4. 确保每个工作表至少统计1页
+        """
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """使用Microsoft Excel COM接口执行打印"""
+```
+
+#### 图片处理器 (`image_handler.py`) 🆕
+
+```python
+class ImageDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """
+        智能图片页数统计:
+        - 一般图片格式(jpg, png, bmp, webp): 1页
+        - TIFF格式: 使用PIL检测实际页数(支持多页TIFF)
+        """
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """通过Windows关联程序或系统打印服务打印图片"""
+```
+
+#### 文本处理器 (`text_handler.py`) 🆕
+
+```python
+class TextDocumentHandler(BaseDocumentHandler):
+    def count_pages(self, file_path: Path) -> int:
+        """
+        智能文本页数估算:
+        1. 多编码检测: UTF-8, GBK, GB2312, ANSI等
+        2. 行数统计: 分析换行符和自动换行
+        3. 页数估算: 基于标准A4纸张尺寸和字体大小
+        4. 文件大小限制: 最大支持100MB文本文件
+        """
+        
+    def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
+        """使用notepad /p命令打印文本文件"""
+```
+
+**Excel页数统计技术细节:**
+
+- **xlwings集成**: 利用xlwings库直接访问Excel的原生分页符API，获得真实的打印页数
+- **分页符分析**: 统计水平分页符(HPageBreaks)和垂直分页符(VPageBreaks)，精确计算页数
+- **工作表遍历**: 逐个处理每个工作表，累加总页数
+- **错误处理**: 单个工作表失败时自动补偿，确保统计结果的可靠性
+
+### 核心算法
+
+#### 1. 智能文件类型识别
+
+```python
+def detect_file_type(file_path: Path) -> FileType:
+    """
+    多层次文件类型识别:
+    1. 文件扩展名检查
+    2. MIME类型检测  
+    3. 文件头魔数验证
+    """
+```
+
+#### 2. 并行处理调度
+
+```python
+class ParallelProcessor:
+    """
+    基于线程池的并行文档处理:
+    - 动态调整工作线程数量
+    - 智能任务分配和负载均衡
+    - 实时进度监控和异常处理
+    """
+```
+
+#### 3. 错误恢复机制
+
+```python
+class ErrorRecoveryManager:
+    """
+    多级错误恢复策略:
+    - 自动重试机制
+    - 降级处理方案
+    - 详细错误日志记录
+    """
+```
+
+## 🧪 开发与测试
+
+### 开发环境搭建
+
+```bash
+# 1. 克隆开发分支
+git clone -b develop https://github.com/icescat/batch-document-printer.git
+
+# 2. 安装开发依赖
+pip install -r requirements-dev.txt
+
+# 3. 安装pre-commit钩子
+pre-commit install
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest
+
+# 运行特定模块测试
+pytest tests/test_handlers/
+
+# 生成测试覆盖率报告
+pytest --cov=src --cov-report=html
+```
+
+### 代码质量检查
+
+```bash
+# 代码格式化
+black src/
+
+# 静态类型检查  
+mypy src/
+
+# 代码风格检查
+flake8 src/
+```
+
+## 📦 构建与分发
+
+### 构建可执行文件
+
+```bash
+# 使用提供的构建脚本
+.\build_v5.0.bat
+
+# 或手动使用PyInstaller
+pyinstaller 办公文档批量打印器v5.0.spec
+```
+
+### 项目打包
+
+```bash
+# 创建分发包
+python setup.py sdist bdist_wheel
+
+# 上传到PyPI
+twine upload dist/*
+```
+
+## 📄 许可证
+
+本项目采用 [MIT许可证](LICENSE) - 查看LICENSE文件了解详情。
+
+## 📞 支持与反馈
+
+- **GitHub**: [项目仓库](https://github.com/icescat/batch-document-printer)
+- **Issues**: [问题追踪](https://github.com/icescat/batch-document-printer/issues)
+- **文档**: [在线文档](https://github.com/icescat/batch-document-printer/wiki)
+
+## 📅 版本更新历史
+
+### 🚀 v5.0 (2025-06-25) - 架构重构版本
+
+#### 新增功能
+- ✅ **多格式支持扩展**: 新增图片文件(.jpg, .jpeg, .png, .bmp, .tiff, .tif, .webp)和文本文件(.txt)支持
+- ✅ **WPS兼容性**: 完整支持WPS格式(.wps, .dps, .et)，复用Office处理器
+- ✅ **智能提示系统**: 优化的tooltip提示，仅在必要位置显示帮助信息
+- ✅ **增强编码支持**: 文本文件智能编码检测(UTF-8, GBK, GB2312等)
+
+#### 架构重构
+- 🔧 **策略模式+注册器**: 全新的模块化处理器架构，每种文件格式独立处理器
+- 🔧 **GUI组件分离**: GUI功能模块化，提升代码可维护性
+- 🔧 **并发优化**: 改进的多线程页数统计，提升处理效率
+
+#### 技术升级
+- 📈 支持Python 3.12+，向下兼容3.8+
+- 📈 改进内存管理，减少大文件处理时的内存占用
+- 📈 更快的启动速度和更稳定的COM接口调用
+
+---
+
+### 🔄 v4.1 (2025-06-23) - 拖拽修复版本
+
+#### 问题修复
+- 🐛 **拖拽导入修复**: 解决文件名包含空格时的导入失败问题
+- 🐛 **路径解析优化**: 改进含特殊字符路径的处理逻辑
+
+---
+
+### 📁 v4.0 (2025-06-23) - 拖拽导入版本
+
+#### 新增功能  
+- ✅ **拖拽导入功能**: 支持直接拖拽文件和文件夹到程序窗口
+- ✅ **递归文件夹扫描**: 自动搜索子文件夹中的支持文档
+- ✅ **智能路径解析**: 自动处理文件路径格式和特殊字符
+
+#### 用户体验改进
+- 🎨 更直观的文件添加方式
+- 🎨 实时的文件类型过滤器应用
+- 🎨 改进的操作反馈提示
+
+---
+
+### 📊 v3.0 (2025-06-22) - 页数统计版本
+
+#### 重大功能新增
+- ✅ **页数统计功能**: 全新的文档页数/张数统计功能
+- ✅ **统计结果展示**: 专用的页数统计对话框，提供详细结果
+- ✅ **批量统计**: 支持多文档同时统计，大幅提升效率
+- ✅ **成本预估**: 为用户提供打印页数参考，便于成本评估
+
+#### 技术实现
+- 🔧 优化数据模型，增加页数相关字段
+- 🔧 完善界面交互，增强用户体验
+
+---
+
+### 📋 v2.0 (2025-06-22) - Excel支持版本
+
+#### 核心功能扩展
+- ✅ **Excel文件支持**: 新增.xls和.xlsx格式支持
+- ✅ **文件类型过滤器**: 独立的Word、PPT、Excel、PDF过滤开关
+- ✅ **界面优化**: 重新设计过滤器布局，提升使用便利性
+
+#### 功能改进
+- 🎨 文件类型可视化选择
+- 🎨 改进的文件添加逻辑
+- 🎨 优化的界面布局和交互
+
+---
+
+### 🎯 v1.0 (2025-06-22) - 首发版本
+
+#### 基础功能实现
+- ✅ **核心打印功能**: 支持Word(.doc/.docx)、PowerPoint(.ppt/.pptx)、PDF文件的批量打印
+- ✅ **图形化界面**: 基于tkinter的直观用户界面
+- ✅ **打印设置**: 完整的打印参数配置(打印机、纸张、份数等)
+- ✅ **文档管理**: 支持添加、删除、清空文档列表
+
+#### 技术基础
+- 🔧 基于Python + tkinter的跨平台桌面应用
+- 🔧 COM接口调用Microsoft Office组件
+- 🔧 PyPDF2处理PDF文档
+- 🔧 模块化的代码架构设计
+
+---
+⭐ 如果这个项目对您有帮助，请给个Star支持一下！ | 💬 欢迎提出建议和反馈
