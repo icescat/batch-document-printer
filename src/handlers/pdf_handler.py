@@ -1,8 +1,8 @@
 """
-PDF文档处理器
-负责PDF文件的打印和页数统计
+PDF文档处理器 - 基于SumatraPDF绿色版的可靠打印方案
+集成SumatraPDF绿色版，提供高兼容性的PDF打印支持
+支持系统关联和SumatraPDF双重方案
 """
-import os
 import subprocess
 import time
 from pathlib import Path
@@ -12,11 +12,33 @@ from .base_handler import BaseDocumentHandler
 
 
 class PDFDocumentHandler(BaseDocumentHandler):
-    """PDF文档处理器"""
+    """PDF文档处理器 - 集成SumatraPDF绿色版"""
     
     def __init__(self):
         """初始化PDF处理器"""
         self._timeout_seconds = 30
+        self._sumatra_path = None
+        self._setup_sumatra_pdf()
+    
+    def _setup_sumatra_pdf(self):
+        """设置SumatraPDF环境"""
+        # SumatraPDF存放路径
+        self._sumatra_dir = Path("external/SumatraPDF")
+        self._sumatra_exe = self._sumatra_dir / "SumatraPDF.exe"
+        
+        # 检查是否已存在
+        if self._sumatra_exe.exists():
+            self._sumatra_path = str(self._sumatra_exe)
+            print(f"✅ SumatraPDF已就绪: {self._sumatra_exe}")
+        else:
+            self._sumatra_path = None
+            print(f"❌ SumatraPDF未找到: {self._sumatra_exe}")
+    
+    def ensure_sumatra_available(self) -> bool:
+        """确保SumatraPDF可用"""
+        return self._sumatra_path and Path(self._sumatra_path).exists()
+    
+
     
     def get_supported_file_types(self) -> Set[FileType]:
         """获取支持的文件类型"""
@@ -36,7 +58,7 @@ class PDFDocumentHandler(BaseDocumentHandler):
     
     def print_document(self, file_path: Path, settings: PrintSettings) -> bool:
         """
-        打印PDF文档
+        打印PDF文档 - 使用SumatraPDF可靠打印
         
         Args:
             file_path: PDF文件路径
@@ -45,330 +67,145 @@ class PDFDocumentHandler(BaseDocumentHandler):
         Returns:
             是否打印成功
         """
-        try:
-            print(f"开始打印PDF文件: {file_path}")
-            
-            # 验证系统级双面打印设置
-            if settings.duplex and settings.printer_name:
-                try:
-                    import win32print
-                    printer_handle = win32print.OpenPrinter(settings.printer_name)
-                    try:
-                        printer_info = win32print.GetPrinter(printer_handle, 2)
-                        devmode = printer_info.get('pDevMode')
-                        if devmode and hasattr(devmode, 'Duplex'):
-                            print(f"🔍 PDF打印前验证: 打印机双面设置为 {devmode.Duplex}")
-                    finally:
-                        win32print.ClosePrinter(printer_handle)
-                except Exception as duplex_check:
-                    print(f"⚠️ PDF双面打印验证失败: {duplex_check}")
-            
-            # 优先使用系统API方式，利用系统级打印机配置
-            success = self._print_with_system_api(file_path, settings)
-            
-            if success:
-                print(f"✅ PDF打印成功（系统API）: {file_path.name}")
-                return True
-            else:
-                # 如果系统API失败，回退到Edge方式
-                print(f"⚠️ 系统API打印失败，尝试Edge方式")
-                success = self._print_with_edge(file_path, settings.printer_name)
-                if success:
-                    print(f"✅ PDF打印成功（Edge）: {file_path.name}")
-                    return True
-                else:
-                    print(f"❌ PDF打印失败: {file_path.name}")
-                    return False
-                
-        except Exception as e:
-            print(f"PDF打印过程中发生错误: {e}")
+        print(f"🖨️ 开始打印PDF文件: {file_path.name}")
+        
+        # 获取打印机名称
+        printer_name = self._get_printer_name(settings)
+        if not printer_name:
+            print("❌ 无法获取打印机")
+            return False
+        
+        print(f"📋 使用打印机: {printer_name}")
+        
+        # 使用SumatraPDF打印
+        if self.ensure_sumatra_available():
+            return self._print_with_sumatra_pdf(file_path, printer_name, settings)
+        else:
+            print("❌ SumatraPDF不可用，请检查安装")
             return False
     
-    def count_pages(self, file_path: Path) -> int:
-        """
-        统计PDF文档页数
-        
-        Args:
-            file_path: PDF文件路径
-            
-        Returns:
-            页数
-            
-        Raises:
-            Exception: 统计失败时抛出异常
-        """
+    def _print_with_sumatra_pdf(self, file_path: Path, printer_name: str, settings: PrintSettings) -> bool:
+        """使用SumatraPDF打印 - 支持完整的打印设置"""
         try:
-            # 首先尝试使用PyPDF2
-            import PyPDF2
-            
-            with open(file_path, 'rb') as file:
-                try:
-                    reader = PyPDF2.PdfReader(file)
-                    
-                    # 检查是否加密
-                    if reader.is_encrypted:
-                        raise Exception("PDF文件已加密，需要密码")
-                    
-                    page_count = len(reader.pages)
-                    
-                    # 验证结果的合理性
-                    if page_count < 0:
-                        raise Exception("获取到无效的页数")
-                    
-                    return page_count
-                    
-                except Exception as pdf_error:
-                    error_str = str(pdf_error).lower()
-                    if "encrypted" in error_str or "password" in error_str:
-                        raise Exception("文件被加密")
-                    else:
-                        raise Exception("文件已损坏")
-                        
-        except ImportError:
-            raise Exception("需要安装PyPDF2库来处理PDF文件")
-        except Exception as e:
-            # 简化的错误处理
-            error_str = str(e).lower()
-            if "文件被加密" in str(e) or "文件已损坏" in str(e):
-                # 重新抛出我们的自定义错误
-                raise e
-            elif "encrypted" in error_str or "password" in error_str or "permission" in error_str or "access" in error_str:
-                raise Exception("文件被加密")
-            else:
-                raise Exception("文件已损坏")
-    
-    def _print_with_edge(self, file_path: Path, printer_name: Optional[str] = None) -> bool:
-        """
-        使用Microsoft Edge打印PDF文件
-        
-        Args:
-            file_path: PDF文件路径
-            printer_name: 打印机名称
-            
-        Returns:
-            是否打印成功
-        """
-        try:
-            # 构建Edge启动命令
-            edge_paths = [
-                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-            ]
-            
-            edge_path = None
-            for path in edge_paths:
-                if os.path.exists(path):
-                    edge_path = path
-                    break
-            
-            if not edge_path:
-                print("未找到Microsoft Edge")
+            if not self._sumatra_path:
+                print("❌ SumatraPDF路径未设置")
                 return False
             
-            # 构建打印命令
+            print(f"🖨️ 使用SumatraPDF打印: {file_path.name}")
+            
+            # 构建SumatraPDF命令行参数
             cmd = [
-                edge_path,
-                "--headless",
-                "--disable-gpu",
-                "--run-all-compositor-stages-before-draw",
-                "--print-to-pdf-no-header",
-                f"--print-to-pdf={file_path}",
-                str(file_path)
+                self._sumatra_path,
+                "-print-to", printer_name,
+                "-silent"  # 静默模式
             ]
             
-            if printer_name:
-                cmd.extend([f"--printer-name={printer_name}"])
+            # 构建打印设置
+            print_settings = []
+            
+            # 双面打印设置
+            print_settings.append(settings.duplex_mode_str)
+            
+            # 纸张方向设置
+            print_settings.append(settings.orientation_str)
+            
+            # 如果有打印设置，添加到命令中
+            if print_settings:
+                cmd.extend(["-print-settings", ",".join(print_settings)])
+            
+            # 添加文件路径
+            cmd.append(str(file_path))
+            
+            # 显示打印设置信息
+            print(f"📄 双面设置: {settings.duplex_mode_str}")
+            print(f"📐 纸张方向: {settings.orientation_str}")
+            print(f"🔢 打印份数: {settings.copies}")
+            print(f"🎨 色彩模式: {'彩色' if settings.color else '黑白'}")
+            
+            print(f"🔧 SumatraPDF命令: {' '.join(cmd)}")
             
             # 执行打印命令
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                timeout=self._timeout_seconds
             )
             
             if result.returncode == 0:
-                print(f"Edge打印命令执行成功")
+                print("✅ SumatraPDF打印命令执行成功")
+                # 等待打印作业完成
+                time.sleep(2)
                 return True
             else:
-                print(f"Edge打印命令失败: {result.stderr}")
+                print(f"❌ SumatraPDF打印失败:")
+                if result.stdout:
+                    print(f"   输出: {result.stdout}")
+                if result.stderr:
+                    print(f"   错误: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            print("Edge打印命令超时")
+            print(f"❌ SumatraPDF打印超时（{self._timeout_seconds}秒）")
             return False
         except Exception as e:
-            print(f"使用Edge打印时出错: {e}")
+            print(f"❌ SumatraPDF打印异常: {e}")
             return False
     
-    def _print_with_system_api(self, file_path: Path, settings: PrintSettings) -> bool:
-        """
-        使用Windows API打印PDF文件（支持双面打印）
-        
-        Args:
-            file_path: PDF文件路径
-            settings: 打印设置
+
+    
+    def _get_printer_name(self, settings: PrintSettings) -> Optional[str]:
+        """获取打印机名称"""
+        if settings.printer_name:
+            return settings.printer_name
             
-        Returns:
-            是否打印成功
-        """
         try:
-            import win32api
             import win32print
-            import win32con
-            import subprocess
+            return win32print.GetDefaultPrinter()
+        except Exception as e:
+            print(f"⚠️ 获取默认打印机失败: {e}")
             
-            # 获取打印机名称
-            printer_name = settings.printer_name or win32print.GetDefaultPrinter()
-            print(f"🖨️ PDF使用打印机: {printer_name}")
-            
-            # 方法1: 尝试使用Adobe Reader或其他PDF阅读器的命令行打印
-            success = self._try_pdf_reader_print(file_path, printer_name, settings)
-            if success:
-                return True
-            
-            # 方法2: 使用Windows默认的打印命令
+            # 备用方案：使用PowerShell获取默认打印机
             try:
-                print("📤 使用Windows默认打印命令...")
-                
-                # 使用系统默认程序打印
-                result = subprocess.run([
-                    "rundll32.exe", 
-                    "mshtml.dll,PrintHTML", 
-                    str(file_path)
-                ], capture_output=True, text=True, timeout=10)
-                
-                if result.returncode == 0:
-                    print("✅ Windows默认打印命令执行成功")
-                    time.sleep(3)
-                    return True
-                else:
-                    print(f"⚠️ Windows默认打印命令失败: {result.stderr}")
-                    
-            except Exception as default_error:
-                print(f"⚠️ Windows默认打印失败: {default_error}")
-            
-            # 方法3: 使用ShellExecute打印
-            try:
-                print("📤 使用ShellExecute打印...")
-                win32api.ShellExecute(
-                    0,
-                    "print",
-                    str(file_path),
-                    f'/d:"{printer_name}"',
-                    "",
-                    0  # SW_HIDE
+                result = subprocess.run(
+                    ['powershell', '-Command', 'Get-WmiObject -Class Win32_Printer | Where-Object {$_.Default -eq $true} | Select-Object -ExpandProperty Name'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
                 )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+            except Exception:
+                pass
                 
-                print("✅ ShellExecute打印命令已发送")
-                time.sleep(3)
-                return True
-                
-            except Exception as shell_error:
-                print(f"❌ ShellExecute打印失败: {shell_error}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ PDF系统API打印失败: {e}")
-            return False
+            return None
     
-    def _try_pdf_reader_print(self, file_path: Path, printer_name: str, settings: PrintSettings) -> bool:
-        """尝试使用PDF阅读器的命令行打印功能"""
-        try:
-            import subprocess
-            import os
-            
-            # 常见PDF阅读器的可能路径
-            pdf_readers = [
-                r"C:\Program Files\Adobe\Acrobat DC\Acrobat\Acrobat.exe",
-                r"C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe",
-                r"C:\Program Files\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe",
-                r"C:\Program Files\Foxit Software\Foxit Reader\FoxitReader.exe"
-            ]
-            
-            for reader_path in pdf_readers:
-                if os.path.exists(reader_path):
-                    try:
-                        print(f"📖 尝试使用PDF阅读器打印: {os.path.basename(reader_path)}")
-                        
-                        if "Acrobat" in reader_path or "AcroRd32" in reader_path:
-                            # Adobe Reader/Acrobat命令行参数
-                            cmd = [
-                                reader_path,
-                                "/t",  # 打印
-                                str(file_path),
-                                printer_name
-                            ]
-                        elif "Foxit" in reader_path:
-                            # Foxit Reader命令行参数
-                            cmd = [
-                                reader_path,
-                                "/t",
-                                str(file_path),
-                                printer_name
-                            ]
-                        else:
-                            continue
-                        
-                        result = subprocess.run(
-                            cmd,
-                            capture_output=True,
-                            text=True,
-                            timeout=15,
-                            creationflags=subprocess.CREATE_NO_WINDOW
-                        )
-                        
-                        if result.returncode == 0:
-                            print(f"✅ PDF阅读器打印成功")
-                            time.sleep(2)
-                            return True
-                        else:
-                            print(f"⚠️ PDF阅读器打印失败: {result.stderr}")
-                            
-                    except Exception as reader_error:
-                        print(f"⚠️ PDF阅读器打印异常: {reader_error}")
-                        continue
-            
-            return False
-            
-        except Exception as e:
-            print(f"⚠️ PDF阅读器打印检查失败: {e}")
-            return False
-    
-    def _print_with_default_program(self, file_path: Path) -> bool:
+    def count_pages(self, file_path: Path) -> int:
         """
-        使用系统默认程序打印PDF文件
+        统计PDF页数 - 使用PyPDF2高效解析
         
         Args:
             file_path: PDF文件路径
             
         Returns:
-            是否打印成功
+            页数，失败返回-1
         """
+        return self._count_pages_with_pypdf2(file_path)
+    
+    def _count_pages_with_pypdf2(self, file_path: Path) -> int:
+        """使用PyPDF2统计页数"""
         try:
-            # 使用Windows的默认打印命令
-            import win32api
-            import win32print
+            from PyPDF2 import PdfReader
             
-            # 获取默认打印机
-            default_printer = win32print.GetDefaultPrinter()
-            
-            # 使用ShellExecute打印
-            win32api.ShellExecute(
-                0,
-                "print",
-                str(file_path),
-                f'/d:"{default_printer}"',
-                "",
-                0
-            )
-            
-            # 等待一段时间让打印任务开始
-            time.sleep(2)
-            
-            return True
-            
+            with open(file_path, 'rb') as file:
+                pdf_reader = PdfReader(file)
+                page_count = len(pdf_reader.pages)
+                print(f"📄 PDF页数统计成功: {page_count}")
+                return page_count
+                
+        except ImportError:
+            print("⚠️ 缺少PyPDF2库，无法统计PDF页数")
+            return -1
         except Exception as e:
-            print(f"使用默认程序打印时出错: {e}")
-            return False 
+            print(f"⚠️ PDF页数统计失败: {e}")
+            return -1 

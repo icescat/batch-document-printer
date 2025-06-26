@@ -122,25 +122,36 @@ class PrintSettingsDialog:
         
         printer_frame.grid_columnconfigure(1, weight=1)
         
-        # 加载打印机列表
-        self._refresh_printers()
+        # 绑定打印机选择变化事件
+        self.printer_combo.bind('<<ComboboxSelected>>', self._on_printer_changed)
     
     def _create_paper_section(self, parent):
         """创建纸张设置区域"""
         paper_frame = ttk.LabelFrame(parent, text="纸张设置", padding="10")
         paper_frame.pack(fill="x", pady=(0, 10))
         
-        # 纸张尺寸
-        ttk.Label(paper_frame, text="纸张尺寸:").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        # 纸张尺寸行
+        paper_row_frame = ttk.Frame(paper_frame)
+        paper_row_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 5))
+        
+        ttk.Label(paper_row_frame, text="纸张尺寸:").grid(row=0, column=0, sticky="w", padx=(0, 10))
         
         self.paper_var = tk.StringVar()
         self.paper_combo = ttk.Combobox(
-            paper_frame,
+            paper_row_frame,
             textvariable=self.paper_var,
-            values=self.printer_manager.paper_sizes,
-            state="readonly"
+            state="readonly",
+            width=25
         )
-        self.paper_combo.grid(row=0, column=1, sticky="w")
+        self.paper_combo.grid(row=0, column=1, sticky="w", padx=(0, 10))
+        
+        # 同步纸张按钮
+        self.btn_sync_paper = ttk.Button(
+            paper_row_frame,
+            text="同步电脑纸张",
+            command=self._sync_paper_sizes
+        )
+        self.btn_sync_paper.grid(row=0, column=2, padx=(5, 0))
         
         # 页面方向
         ttk.Label(paper_frame, text="页面方向:").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(10, 0))
@@ -164,6 +175,10 @@ class PrintSettingsDialog:
             value="landscape"
         )
         self.rb_landscape.pack(side="left")
+        
+        # 配置网格权重
+        paper_frame.grid_columnconfigure(1, weight=1)
+        paper_row_frame.grid_columnconfigure(1, weight=1)
     
     def _create_options_section(self, parent):
         """创建打印选项区域"""
@@ -314,13 +329,34 @@ class PrintSettingsDialog:
     
     def _load_current_settings(self):
         """加载当前设置到界面"""
+        # 首先自动刷新打印机列表，确保数据是最新的
+        print("自动刷新打印机列表...")
+        self._refresh_printers()
+        
         # 设置打印机
         if self.current_settings.printer_name:
-            self.printer_var.set(self.current_settings.printer_name)
+            # 检查打印机是否还存在
+            available_printers = self.printer_manager.available_printers
+            if self.current_settings.printer_name in available_printers:
+                self.printer_var.set(self.current_settings.printer_name)
+            else:
+                # 如果原打印机不存在，使用默认打印机
+                default_printer = self.printer_manager.default_printer
+                if default_printer:
+                    self.printer_var.set(default_printer)
+                    print(f"原打印机不可用，已切换到默认打印机: {default_printer}")
+            
             self._update_printer_info()
         
-        # 设置纸张尺寸
-        self.paper_var.set(self.current_settings.paper_size)
+        # 设置默认纸张列表（标准纸张，不自动同步系统纸张）
+        self._load_default_paper_sizes()
+        
+        # 设置纸张尺寸（优先使用A4）
+        if self.current_settings.paper_size and self.current_settings.paper_size in list(self.paper_combo['values']):
+            self.paper_var.set(self.current_settings.paper_size)
+        else:
+            # 默认使用A4
+            self.paper_var.set('A4')
         
         # 设置页面方向
         self.orientation_var.set(self.current_settings.orientation.value)
@@ -333,6 +369,15 @@ class PrintSettingsDialog:
         
         # 设置双面打印
         self.duplex_var.set(self.current_settings.duplex)
+        
+        print("打印设置加载完成（纸张使用默认列表，如需同步系统纸张请点击'同步纸张'按钮）")
+
+    def _load_default_paper_sizes(self):
+        """加载默认纸张尺寸列表"""
+        # 使用标准纸张尺寸列表
+        standard_papers = list(self.printer_manager.STANDARD_PAPER_SIZES.keys())
+        self.paper_combo['values'] = standard_papers
+        print(f"已加载默认纸张列表，共 {len(standard_papers)} 种标准格式")
     
     def _validate_settings(self) -> bool:
         """验证设置是否有效"""
@@ -399,4 +444,45 @@ class PrintSettingsDialog:
             # 重置为默认设置
             default_settings = self.printer_manager.create_default_settings()
             self.current_settings = default_settings
-            self._load_current_settings() 
+            self._load_current_settings()
+    
+    def _on_printer_changed(self, event):
+        """处理打印机选择变化事件"""
+        self._update_printer_info()
+        # 不自动同步纸张，用户需要手动点击"同步纸张"按钮
+    
+    def _sync_paper_sizes(self):
+        """同步纸张尺寸列表"""
+        printer_name = self.printer_var.get()
+        if not printer_name:
+            return
+        
+        try:
+            # 获取选中打印机支持的纸张尺寸
+            paper_sizes = self.printer_manager.get_printer_paper_sizes(printer_name)
+            self.paper_combo['values'] = paper_sizes
+            
+            # 保存当前选择的纸张尺寸
+            current_paper = self.paper_var.get()
+            
+            # 如果当前纸张在新列表中，保持选择；否则选择默认A4或第一个
+            if current_paper and current_paper in paper_sizes:
+                self.paper_var.set(current_paper)
+            elif 'A4' in paper_sizes:
+                self.paper_var.set('A4')
+            elif paper_sizes:
+                self.paper_var.set(paper_sizes[0])
+            else:
+                self.paper_var.set('')
+            
+            print(f"已更新打印机 '{printer_name}' 的纸张列表，共 {len(paper_sizes)} 种格式")
+            
+        except Exception as e:
+            print(f"同步纸张尺寸失败: {e}")
+            # 如果失败，使用标准纸张尺寸作为备用
+            standard_papers = list(self.printer_manager.STANDARD_PAPER_SIZES.keys())
+            self.paper_combo['values'] = standard_papers
+            if 'A4' in standard_papers:
+                self.paper_var.set('A4')
+    
+ 

@@ -12,15 +12,11 @@ python-pptx==0.6.23
 PyPDF2==3.0.1
 xlwings==0.32.0
 
-# 图片处理库（可选，用于增强图片支持）
+# 图片处理库（多页TIFF页数统计、文件验证、图片信息获取）
 Pillow>=9.0.0
 
+# Excel导出支持（可选）
+openpyxl>=3.1.0
+
 # 打包工具
-PyInstaller==6.3.0
-
-# 开发工具
-pytest==7.4.4
-black==23.12.1
-
-# 系统工具
-pathlib2==2.3.7 
+PyInstaller==6.3.0 

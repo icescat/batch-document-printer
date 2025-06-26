@@ -330,3 +330,97 @@ class ListOperationHandler:
             return True
         
         return False 
+    
+    def filter_documents_by_enabled_types(self, enabled_file_types: dict) -> int:
+        """
+        根据启用的文件类型过滤文档列表
+        
+        Args:
+            enabled_file_types: 启用的文件类型字典，如 {'word': True, 'pdf': False, ...}
+            
+        Returns:
+            int: 被过滤掉的文档数量
+        """
+        if self.document_manager.document_count == 0:
+            messagebox.showinfo("提示", "文档列表为空，无需过滤")
+            return 0
+        
+        # 获取启用的文件类型列表
+        enabled_types = [file_type for file_type, enabled in enabled_file_types.items() if enabled]
+        
+        if not enabled_types:
+            messagebox.showwarning("提示", "请至少勾选一种文件类型")
+            return 0
+        
+        # 统计过滤前的文档数量
+        original_count = self.document_manager.document_count
+        
+        # 找出需要移除的文档
+        documents_to_remove = []
+        for doc in self.document_manager.documents:
+            # 根据文档的文件类型判断是否需要移除
+            doc_type = self._get_document_type_key(doc.type_display)
+            if doc_type not in enabled_types:
+                documents_to_remove.append(doc)
+        
+        if not documents_to_remove:
+            messagebox.showinfo("提示", "没有需要过滤的文档")
+            return 0
+        
+        # 确认过滤操作
+        filter_count = len(documents_to_remove)
+        if not messagebox.askyesno("确认过滤", 
+                                 f"将过滤掉 {filter_count} 个未勾选类型的文档，确定继续吗？"):
+            return 0
+        
+        # 执行过滤操作
+        removed_count = 0
+        for doc in documents_to_remove:
+            if self.document_manager.remove_document(doc.id):
+                removed_count += 1
+        
+        if removed_count > 0:
+            enabled_type_names = [self._get_type_display_name(t) for t in enabled_types]
+            print(f"文件过滤完成：保留了 {', '.join(enabled_type_names)} 类型文档，过滤掉 {removed_count} 个文档")
+        
+        return removed_count
+    
+    def _get_document_type_key(self, type_display: str) -> str:
+        """
+        根据文档显示类型获取对应的类型键
+        
+        Args:
+            type_display: 文档显示类型，如 "Word文档"、"PDF文件" 等
+            
+        Returns:
+            str: 对应的类型键，如 "word"、"pdf" 等
+        """
+        type_mapping = {
+            "Word文档": "word",
+            "PowerPoint": "ppt", 
+            "Excel表格": "excel",
+            "PDF文件": "pdf",
+            "图片文件": "image",
+            "文本文件": "text"
+        }
+        return type_mapping.get(type_display, "unknown")
+    
+    def _get_type_display_name(self, type_key: str) -> str:
+        """
+        根据类型键获取显示名称
+        
+        Args:
+            type_key: 类型键，如 "word"、"pdf" 等
+            
+        Returns:
+            str: 显示名称
+        """
+        display_mapping = {
+            "word": "Word",
+            "ppt": "PPT", 
+            "excel": "Excel",
+            "pdf": "PDF",
+            "image": "图片",
+            "text": "文本"
+        }
+        return display_mapping.get(type_key, type_key)

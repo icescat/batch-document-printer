@@ -363,6 +363,11 @@ class DocumentManager:
             print(f"不是文件: {file_path}")
             return False
         
+        # 过滤临时文件和隐藏文件
+        if self._is_temp_or_hidden_file(file_path):
+            print(f"跳过临时/隐藏文件: {file_path.name}")
+            return False
+        
         # 检查文件扩展名
         if file_path.suffix.lower() not in self.SUPPORTED_EXTENSIONS:
             print(f"不支持的文件类型: {file_path.suffix}")
@@ -379,4 +384,101 @@ class DocumentManager:
             print(f"无法读取文件信息: {file_path} - {e}")
             return False
         
-        return True 
+        return True
+    
+    def _is_temp_or_hidden_file(self, file_path: Path) -> bool:
+        """
+        检查是否为临时文件或隐藏文件
+        
+        Args:
+            file_path: 文件路径
+            
+        Returns:
+            是否为临时文件或隐藏文件
+        """
+        file_name = file_path.name
+        
+        # 1. 检查隐藏文件（以点开头）
+        if file_name.startswith('.'):
+            return True
+        
+        # 2. 检查Office临时文件
+        # Word临时文件：~$开头
+        if file_name.startswith('~$'):
+            return True
+        
+        # Excel临时文件：~$开头或者.tmp结尾
+        if file_name.startswith('~$') or file_name.lower().endswith('.tmp'):
+            return True
+        
+        # PowerPoint特殊临时文件：pptE或pptF开头的临时文件
+        if file_name.startswith('pptE') or file_name.startswith('pptF'):
+            return True
+        
+        # 3. 检查Windows系统临时文件
+        temp_patterns = [
+            '~',          # 以~开头的文件
+            'Thumbs.db',  # Windows缩略图文件
+            'desktop.ini', # Windows桌面配置文件
+            '.DS_Store',  # macOS系统文件
+        ]
+        
+        for pattern in temp_patterns:
+            if file_name.startswith(pattern) or file_name == pattern:
+                return True
+        
+        # 4. 检查Office自动恢复文件
+        recovery_patterns = [
+            'AutoRecovery save of',  # Word自动恢复
+            '自动恢复的',              # 中文自动恢复
+        ]
+        
+        for pattern in recovery_patterns:
+            if pattern in file_name:
+                return True
+        
+        # 5. 检查备份文件
+        backup_patterns = [
+            '.bak',    # 备份文件
+            '.backup', # 备份文件
+            '副本',    # 中文副本文件
+            ' - 副本', # 中文副本文件
+        ]
+        
+        for pattern in backup_patterns:
+            if file_name.lower().endswith(pattern.lower()) or pattern in file_name:
+                return True
+        
+        # 6. 使用Windows API检查隐藏属性（如果可用）
+        try:
+            import os
+            import stat
+            
+            # 检查文件属性
+            file_stat = file_path.stat()
+            
+            # 在Windows上检查隐藏属性
+            if os.name == 'nt':
+                try:
+                    import win32api
+                    import win32con
+                    
+                    attrs = win32api.GetFileAttributes(str(file_path))
+                    if attrs & win32con.FILE_ATTRIBUTE_HIDDEN:
+                        return True
+                    if attrs & win32con.FILE_ATTRIBUTE_SYSTEM:
+                        return True
+                    if attrs & win32con.FILE_ATTRIBUTE_TEMPORARY:
+                        return True
+                except ImportError:
+                    # win32api不可用，跳过Windows特定检查
+                    pass
+                except Exception:
+                    # 其他错误，跳过
+                    pass
+            
+        except Exception:
+            # 如果无法获取文件属性，不影响判断
+            pass
+        
+        return False 

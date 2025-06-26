@@ -138,11 +138,16 @@ class MainWindow:
         )
         
         self.btn_remove_selected = ttk.Button(
-            self.toolbar, text="删除选中", 
+            self.toolbar, text="移除选中", 
             command=self._remove_selected_documents
         )
         
         self.btn_clear = ttk.Button(
+            self.toolbar, text="文件过滤", 
+            command=self._filter_documents
+        )
+        
+        self.btn_filter = ttk.Button(
             self.toolbar, text="清空列表", 
             command=self._clear_documents
         )
@@ -304,17 +309,18 @@ class MainWindow:
     
     def _setup_layout(self):
         """设置布局"""
-        # 工具栏布局
-        self.btn_add_files.pack(side="left", padx=2)
-        self.btn_add_folder.pack(side="left", padx=2)
-        self.btn_remove_selected.pack(side="left", padx=2)
-        self.btn_clear.pack(side="left", padx=2)
-        self.btn_print_settings.pack(side="left", padx=10)
-        self.btn_help.pack(side="left", padx=2)
+        # 工具栏布局 - 统一风格和间距
+        self.btn_add_files.pack(side="left", padx=3)
+        self.btn_add_folder.pack(side="left", padx=3)
+        self.btn_remove_selected.pack(side="left", padx=3)
+        self.btn_clear.pack(side="left", padx=3)
+        self.btn_filter.pack(side="left", padx=3)
+        self.btn_print_settings.pack(side="left", padx=3)
+        self.btn_help.pack(side="left", padx=3)
         
-        # 右侧按钮
-        self.btn_start_print.pack(side="right", padx=5)
-        self.btn_calculate_pages.pack(side="right", padx=2)
+        # 右侧按钮 - 统一间距
+        self.btn_start_print.pack(side="right", padx=3)
+        self.btn_calculate_pages.pack(side="right", padx=3)
         
         # 主框架布局
         self.toolbar.pack(fill="x", padx=10, pady=5)
@@ -369,6 +375,10 @@ class MainWindow:
         create_button_tooltip(self.chk_text, 
             "文本文件过滤器\n支持格式: .txt\n注意:此格式只能模糊统计页数")
         
+        # 为工具栏按钮添加tooltip
+        create_button_tooltip(self.btn_filter, 
+            "文件过滤\n根据上方勾选的文件类型过滤列表\n只保留勾选类型的文档，移除未勾选类型的文档")
+        
 
     
 
@@ -402,6 +412,21 @@ class MainWindow:
         if not self.list_operation_handler:
             return
         if self.list_operation_handler.clear_all_documents():
+            self._refresh_document_list()
+            self._update_status()
+    
+    def _filter_documents(self):
+        """根据勾选的文件类型过滤文档列表"""
+        if not self.list_operation_handler:
+            return
+        
+        # 获取当前启用的文件类型
+        enabled_types = self._get_enabled_file_types()
+        
+        # 执行过滤操作
+        filtered_count = self.list_operation_handler.filter_documents_by_enabled_types(enabled_types)
+        
+        if filtered_count > 0:
             self._refresh_document_list()
             self._update_status()
     
@@ -607,6 +632,10 @@ class MainWindow:
                 label="🔄  重置排序",
                 command=self._reset_sort
             )
+            self.context_menu.add_command(
+                label="🔍  文件过滤",
+                command=self._filter_documents
+            )
             self.context_menu.add_separator()
             self.context_menu.add_command(
                 label="📊  计算选中文档页数",
@@ -626,6 +655,10 @@ class MainWindow:
             self.context_menu.add_command(
                 label="🔄  重置排序",
                 command=self._reset_sort
+            )
+            self.context_menu.add_command(
+                label="🔍  文件过滤",
+                command=self._filter_documents
             )
             self.context_menu.add_separator()
             self.context_menu.add_command(
@@ -759,27 +792,20 @@ class MainWindow:
 1 文件类型过滤
    • 勾选/取消勾选各种文件类型过滤器
    • Word、PPT、Excel、PDF、图片、文本独立控制
-   • 实时生效，影响文件添加和文件夹扫描
    • 鼠标悬停过滤器可查看支持的扩展名
 
 2 添加文档
-   • 点击"添加文件"选择单个或多个文档
-   • 点击"添加文件夹"批量添加整个文件夹中的文档
-   • 🆕 直接拖拽文件或文件夹到程序窗口进行快速添加
+   • 点击按钮添加选择单个或多个文档以及文件夹
+   • 直接拖拽文件或文件夹到程序窗口进行快速添加
    • 支持递归搜索子文件夹
 
 3 管理文档
-   • 选中文档后点击"删除选中"可移除特定文档
-   • 点击"清空列表"可移除所有文档
+   • 可单、多选文档后进行操作
    • 双击文档可用默认程序打开预览
-   • 按Delete键可快速删除选中文档
-   • 支持多选操作（Ctrl+点击）
 
 4 页数统计
    • 点击"计算页数"统计所有文档的页数
-   • 智能识别文档类型，使用对应处理器
-   • 支持并发统计，提高处理速度
-   • 显示详细统计报告和问题文件
+   • 可多选后用右键统计选中文档
    • 可导出统计结果到Excel
 
 5 配置打印
@@ -798,22 +824,21 @@ class MainWindow:
 🚀 v5.0 新特性
 
 🏗️ 架构升级：
-   • 全新的策略模式+注册器模式架构
-   • 模块化文件处理器设计
-   • 更好的代码组织和可维护性
+   • 重新编写构架使用模块化文件处理器设计
 
 📈 功能增强：
    • 新增图片文件支持（.jpg, .png, .bmp, .tiff, .webp等）
    • 新增文本文件支持（.txt）
    • 新增WPS格式完整支持（.wps, .dps, .et）
-   • 优化拖拽导入功能
-   • 新增界面提示系统
-
+   • 新增文件过滤功能
+   • 新增右键增强功能
+   • 新增文件排序功能
+   • 新增浮窗提示功能
 🔧 技术改进：
-   • 优化的并发页数统计
-   • 增强的错误处理和稳定性
-   • 更精确的文件格式识别
-   • 更智能的编码检测（文本文件）
+   • 优化拖拽导入功能
+   • 增强双面打印成功率
+   • 修复PDF偶尔无法打印问题
+   • 修复纸张规格无法同步问题
 
 ═══════════════════════════════════════
 

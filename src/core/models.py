@@ -40,6 +40,21 @@ class Orientation(Enum):
     LANDSCAPE = "landscape" # 横向
 
 
+class DuplexMode(Enum):
+    """双面打印模式枚举"""
+    SIMPLEX = "simplex"         # 单面打印
+    DUPLEX = "duplex"           # 双面打印（默认）
+    DUPLEX_SHORT = "duplexshort"  # 短边翻页
+    DUPLEX_LONG = "duplexlong"    # 长边翻页
+
+
+class ScalingMode(Enum):
+    """缩放模式枚举"""
+    FIT = "fit"           # 适合页面
+    SHRINK = "shrink"     # 仅缩小
+    NOSCALE = "noscale"   # 无缩放
+
+
 @dataclass
 class Document:
     """文档数据模型"""
@@ -94,13 +109,42 @@ class Document:
 
 @dataclass
 class PrintSettings:
-    """打印设置数据模型"""
+    """打印设置数据模型 - 🆕 支持完整的双面打印配置"""
     printer_name: str = ""
     paper_size: str = "A4"
     copies: int = 1
-    duplex: bool = True  # 默认启用双面打印
+    
+    # 🆕 增强的双面打印支持
+    duplex: bool = True  # 是否启用双面打印
+    duplex_mode: DuplexMode = DuplexMode.DUPLEX_LONG  # 双面打印模式（默认长边翻页）
+    
+    # 其他打印设置
     color_mode: ColorMode = ColorMode.GRAYSCALE  # 默认黑白打印
     orientation: Orientation = Orientation.PORTRAIT  # 默认竖向
+    scaling: ScalingMode = ScalingMode.FIT  # 缩放模式（默认适合页面）
+    
+    # 便捷属性
+    @property
+    def color(self) -> bool:
+        """是否彩色打印"""
+        return self.color_mode == ColorMode.COLOR
+    
+    @property
+    def scaling_str(self) -> str:
+        """缩放模式字符串"""
+        return self.scaling.value
+    
+    @property
+    def orientation_str(self) -> str:
+        """方向字符串"""
+        return self.orientation.value
+    
+    @property
+    def duplex_mode_str(self) -> str:
+        """双面打印模式字符串"""
+        if not self.duplex:
+            return "simplex"
+        return self.duplex_mode.value
     
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -109,8 +153,10 @@ class PrintSettings:
             'paper_size': self.paper_size,
             'copies': self.copies,
             'duplex': self.duplex,
+            'duplex_mode': self.duplex_mode.value,
             'color_mode': self.color_mode.value,
-            'orientation': self.orientation.value
+            'orientation': self.orientation.value,
+            'scaling': self.scaling.value
         }
     
     @classmethod
@@ -120,9 +166,11 @@ class PrintSettings:
             printer_name=data.get('printer_name', ''),
             paper_size=data.get('paper_size', 'A4'),
             copies=data.get('copies', 1),
-            duplex=data.get('duplex', True),  # 默认启用双面打印
-            color_mode=ColorMode(data.get('color_mode', 'grayscale')),  # 默认黑白
-            orientation=Orientation(data.get('orientation', 'portrait'))
+            duplex=data.get('duplex', True),
+            duplex_mode=DuplexMode(data.get('duplex_mode', 'duplexlong')),
+            color_mode=ColorMode(data.get('color_mode', 'grayscale')),
+            orientation=Orientation(data.get('orientation', 'portrait')),
+            scaling=ScalingMode(data.get('scaling', 'fit'))
         )
 
 
