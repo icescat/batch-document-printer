@@ -115,7 +115,7 @@ class PrintSettings:
     copies: int = 1
     
     # 🆕 增强的双面打印支持
-    duplex: bool = True  # 是否启用双面打印
+    duplex: bool = False  # 是否启用双面打印（默认关闭）
     duplex_mode: DuplexMode = DuplexMode.DUPLEX_LONG  # 双面打印模式（默认长边翻页）
     
     # 其他打印设置
@@ -166,7 +166,7 @@ class PrintSettings:
             printer_name=data.get('printer_name', ''),
             paper_size=data.get('paper_size', 'A4'),
             copies=data.get('copies', 1),
-            duplex=data.get('duplex', True),
+            duplex=data.get('duplex', False),
             duplex_mode=DuplexMode(data.get('duplex_mode', 'duplexlong')),
             color_mode=ColorMode(data.get('color_mode', 'grayscale')),
             orientation=Orientation(data.get('orientation', 'portrait')),

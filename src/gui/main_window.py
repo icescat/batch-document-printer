@@ -141,15 +141,15 @@ class MainWindow:
             self.toolbar, text="移除选中", 
             command=self._remove_selected_documents
         )
-        
+         
         self.btn_clear = ttk.Button(
-            self.toolbar, text="文件过滤", 
-            command=self._filter_documents
-        )
-        
-        self.btn_filter = ttk.Button(
             self.toolbar, text="清空列表", 
             command=self._clear_documents
+        )
+
+        self.btn_filter = ttk.Button(
+            self.toolbar, text="文件过滤", 
+            command=self._filter_documents
         )
         
         # 功能按钮
@@ -313,8 +313,8 @@ class MainWindow:
         self.btn_add_files.pack(side="left", padx=3)
         self.btn_add_folder.pack(side="left", padx=3)
         self.btn_remove_selected.pack(side="left", padx=3)
-        self.btn_clear.pack(side="left", padx=3)
         self.btn_filter.pack(side="left", padx=3)
+        self.btn_clear.pack(side="left", padx=3)
         self.btn_print_settings.pack(side="left", padx=3)
         self.btn_help.pack(side="left", padx=3)
         
@@ -388,14 +388,14 @@ class MainWindow:
         """添加文件"""
         added_count = self.file_import_handler.add_files_dialog()
         if added_count > 0:
-            self._refresh_document_list()
+            self._refresh_document_list(force_rebuild=True)  # 添加文件需要重建列表
             self._update_status()
     
     def _add_folder(self):
         """添加文件夹"""
         added_count = self.file_import_handler.add_folder_dialog()
         if added_count > 0:
-            self._refresh_document_list()
+            self._refresh_document_list(force_rebuild=True)  # 添加文件需要重建列表
             self._update_status()
     
     def _remove_selected_documents(self):
@@ -404,7 +404,7 @@ class MainWindow:
             return
         removed_count = self.list_operation_handler.remove_selected_documents()
         if removed_count > 0:
-            self._refresh_document_list()
+            self._refresh_document_list(force_rebuild=True)  # 删除文件需要重建列表
             self._update_status()
     
     def _clear_documents(self):
@@ -412,7 +412,7 @@ class MainWindow:
         if not self.list_operation_handler:
             return
         if self.list_operation_handler.clear_all_documents():
-            self._refresh_document_list()
+            self._refresh_document_list(force_rebuild=True)  # 清空列表需要重建
             self._update_status()
     
     def _filter_documents(self):
@@ -427,7 +427,7 @@ class MainWindow:
         filtered_count = self.list_operation_handler.filter_documents_by_enabled_types(enabled_types)
         
         if filtered_count > 0:
-            self._refresh_document_list()
+            self._refresh_document_list(force_rebuild=True)  # 过滤文件需要重建列表
             self._update_status()
     
     # === 文件类型过滤器相关 ===
@@ -450,12 +450,12 @@ class MainWindow:
     
     def _on_files_imported(self):
         """文件导入完成后的回调函数"""
-        self._refresh_document_list()
+        self._refresh_document_list(force_rebuild=True)  # 导入文件需要重建列表
         self._update_status()
     
     def _on_list_operation_completed(self):
         """列表操作完成后的回调函数"""
-        self._refresh_document_list()
+        self._refresh_document_list(force_rebuild=True)  # 列表操作完成需要重建列表
         self._update_status()
     
     # === 打印相关方法 ===
@@ -484,9 +484,17 @@ class MainWindow:
             messagebox.showwarning("提示", "请先添加要打印的文档")
             return
         
+        # 检查是否已设置打印机，如果没有则强制打开设置对话框
         if not self.current_print_settings.printer_name:
-            messagebox.showerror("错误", "请先设置打印机")
-            return
+            if messagebox.askyesno("需要设置打印机", "检测到尚未设置打印机，是否现在进行设置？"):
+                self._show_print_settings()
+                # 检查用户是否完成了设置
+                if not self.current_print_settings.printer_name:
+                    messagebox.showinfo("取消打印", "未完成打印机设置，打印操作已取消")
+                    return
+            else:
+                messagebox.showinfo("取消打印", "需要设置打印机才能开始打印")
+                return
         
         # 确认开始打印
         if not messagebox.askyesno("确认", f"确定要打印 {self.document_manager.document_count} 个文档吗？"):
@@ -551,8 +559,30 @@ class MainWindow:
             messagebox.showerror("错误", f"页数统计功能出错: {e}")
     
     # === 界面更新相关方法 ===
-    def _refresh_document_list(self):
-        """刷新文档列表显示"""
+    def _refresh_document_list(self, force_rebuild: bool = False):
+        """
+        刷新文档列表显示
+        
+        Args:
+            force_rebuild: 是否强制重建整个列表（默认为智能更新）
+        """
+        if force_rebuild or len(self.doc_tree.get_children()) != len(self.document_manager.documents):
+            # 强制重建或列表长度不匹配时，完全重建列表
+            self._rebuild_document_list()
+        else:
+            # 智能更新：只更新状态发生变化的项目
+            self._update_document_list_status()
+    
+    def _rebuild_document_list(self):
+        """完全重建文档列表"""
+        # 保存当前选中状态
+        selected_items = self.doc_tree.selection()
+        selected_file_paths = []
+        for item in selected_items:
+            values = self.doc_tree.item(item, 'values')
+            if values and len(values) > 4:
+                selected_file_paths.append(values[4])  # 文件路径在第5列
+        
         # 清空现有项目
         for item in self.doc_tree.get_children():
             self.doc_tree.delete(item)
@@ -566,17 +596,48 @@ class MainWindow:
                 PrintStatus.ERROR: "失败"
             }.get(doc.print_status, "未知")
             
-            self.doc_tree.insert("", "end", values=(
+            item_id = self.doc_tree.insert("", "end", values=(
                 doc.file_name,
                 doc.type_display,
                 doc.size_mb,
                 status_text,
                 str(doc.file_path)
             ))
+            
+            # 恢复选中状态
+            if str(doc.file_path) in selected_file_paths:
+                self.doc_tree.selection_add(item_id)
         
         # 保持排序指示器显示
         if self.list_operation_handler:
             self.list_operation_handler.maintain_sort_indicators()
+    
+    def _update_document_list_status(self):
+        """智能更新文档列表状态（只更新变化的项目）"""
+        items = self.doc_tree.get_children()
+        documents = self.document_manager.documents
+        
+        if len(items) != len(documents):
+            # 长度不匹配，回退到完全重建
+            self._rebuild_document_list()
+            return
+        
+        # 逐项检查和更新状态
+        for item, doc in zip(items, documents):
+            current_values = list(self.doc_tree.item(item, 'values'))
+            
+            # 获取新的状态文本
+            new_status_text = {
+                PrintStatus.PENDING: "待打印",
+                PrintStatus.PRINTING: "打印中",
+                PrintStatus.COMPLETED: "已完成",
+                PrintStatus.ERROR: "失败"
+            }.get(doc.print_status, "未知")
+            
+            # 如果状态发生变化，更新这一项
+            if len(current_values) > 3 and current_values[3] != new_status_text:
+                current_values[3] = new_status_text
+                self.doc_tree.item(item, values=current_values)
     
     def _update_status(self):
         """更新状态显示"""
@@ -689,9 +750,17 @@ class MainWindow:
             messagebox.showwarning("提示", "打印任务正在进行中")
             return
         
+        # 检查是否已设置打印机，如果没有则强制打开设置对话框
         if not self.current_print_settings.printer_name:
-            messagebox.showerror("错误", "请先设置打印机")
-            return
+            if messagebox.askyesno("需要设置打印机", "检测到尚未设置打印机，是否现在进行设置？"):
+                self._show_print_settings()
+                # 检查用户是否完成了设置
+                if not self.current_print_settings.printer_name:
+                    messagebox.showinfo("取消打印", "未完成打印机设置，打印操作已取消")
+                    return
+            else:
+                messagebox.showinfo("取消打印", "需要设置打印机才能开始打印")
+                return
         
         # 确认打印
         count = len(selected_documents)
@@ -719,7 +788,7 @@ class MainWindow:
         if not self.list_operation_handler:
             return
         self.list_operation_handler.reset_sort()
-        self._refresh_document_list()
+        self._refresh_document_list(force_rebuild=True)  # 重置排序需要重建列表
     
     # === 事件处理 ===
     def _on_double_click(self, event):

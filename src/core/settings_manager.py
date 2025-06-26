@@ -305,7 +305,7 @@ class PrinterSettingsManager:
             printer_name=printer_name,
             paper_size="A4",
             copies=1,
-            duplex=True,  # 启用双面打印
+            duplex=False,  # 默认关闭双面打印
             color_mode=ColorMode.GRAYSCALE,  # 黑白打印
             orientation=Orientation.PORTRAIT  # 竖向（纵向）
         )
