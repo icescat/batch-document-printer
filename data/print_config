@@ -1,0 +1,43 @@
+{
+  "app_config": {
+    "last_printer": "Microsoft Print to PDF",
+    "default_settings": {
+      "printer_name": "",
+      "paper_size": "A4",
+      "copies": 1,
+      "duplex": false,
+      "duplex_mode": "duplexlong",
+      "color_mode": "grayscale",
+      "orientation": "portrait",
+      "scaling": "fit"
+    },
+    "window_geometry": {
+      "width": 1000,
+      "height": 700,
+      "x": 100,
+      "y": 100
+    },
+    "recent_folders": [
+      "C:\\Documents",
+      "C:\\Desktop"
+    ],
+    "enabled_file_types": {
+      "word": true,
+      "ppt": true,
+      "excel": false,
+      "pdf": true,
+      "image": true,
+      "text": true
+    }
+  },
+  "print_settings": {
+    "printer_name": "",
+    "paper_size": "A3",
+    "copies": 2,
+    "duplex": false,
+    "duplex_mode": "duplexlong",
+    "color_mode": "color",
+    "orientation": "landscape",
+    "scaling": "fit"
+  }
+}
